@@ -12,20 +12,22 @@ Union of Shellinabox WebClient and WSSHD WebSocket Tunnel, support shell interac
 
 --------------------------------------------------------
 
-[ShellWithWSSD Installation]
+# ShellWithWSSD Installation
 
-# sudo apt-get install python-pip
-# sudo pip install flask
-# sudo pip install paramiko
-# sudo pip install gevent-websocket
-# 
-# git clone https://github.com/maverickplusplus/shellwithwsshd
-# cd shellwithwsshd
-# 
-# ./dl-wsshd
+* sudo apt-get install python-pip
+* sudo pip install flask
+* sudo pip install paramiko
+* sudo pip install gevent-websocket
+* 
+* git clone https://github.com/maverickplusplus/shellwithwsshd
+* cd shellwithwsshd
+* 
+* ./dl-wsshd
 
 
-[Login SSH through ShellWithWSSD]
+--------------------------------------------------------
 
-# firefox "http://0.0.0.0:5000/"
+# Login SSH through ShellWithWSSD
+
+* firefox "http://0.0.0.0:5000/"
 
