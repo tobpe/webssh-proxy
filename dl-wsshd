@@ -190,54 +190,60 @@ app = Flask(__name__)
 
 @app.route('/wssh/<hostname>/<username>')
 def connect(hostname, username):
+	print(request.headers)
 	app.logger.debug('{remote} -> {username}@{hostname}: {command}'.format(
 			remote=request.remote_addr,
 			username=username,
 			hostname=hostname,
-			command=request.args['run'] if 'run' in request.args else
-				'[interactive shell]'
+			command='[interactive shell]'
 		))
 
 	# Abort if this is not a websocket request
 	if not request.environ.get('wsgi.websocket'):
 		app.logger.error('Abort: Request is not WebSocket upgradable')
 		raise BadRequest()
+	_socket = request.environ['wsgi.websocket']
+	login_conf = {}
+	try:
+		data = _socket.receive()
+		if not data:
+			return
+		data = json.loads(str(data))['login']
+		login_conf['host'] = data['host']
+		login_conf['user'] = data['user']
+		login_conf['cmd'] = data['cmd']
+		login_conf['pass'] = data['pass'] if 'pass' in data else None
+		login_conf['key'] = data['key'] if 'key' in data else None
+		login_conf['phrase'] = data['phrase'] if 'phrase' in data else None
+	except:
+		_socket.close()
+		return str()
 
-	bridge = WSSHBridge(request.environ['wsgi.websocket'])
+	bridge = WSSHBridge(_socket)
 	try:
 		bridge.open(
-			hostname=hostname,
-			username=username,
-			password=request.args.get('password'),
-			port=int(request.args.get('port')),
-			private_key=request.args.get('private_key'),
-			key_passphrase=request.args.get('key_passphrase'),
+			hostname=login_conf['host'],
+			username=login_conf['user'],
+			password=login_conf['pass'],
+			port=22,# port=int(request.args.get('port')),
+			private_key=login_conf['key'],
+			key_passphrase=login_conf['phrase'],
 			allow_agent=app.config.get('WSSH_ALLOW_SSH_AGENT', False))
 	except Exception as e:
 		app.logger.exception('Error while connecting to {0}: {1}'.format(
 			hostname, e.message))
-		request.environ['wsgi.websocket'].close()
+		_socket.close()
 		return str()
-	if 'run' in request.args:
-		bridge.execute(request.args.get('run'))
+	if login_conf['cmd']!=None:
+		bridge.execute(login_conf['cmd'])
 	else:
 		bridge.shell()
 
-	request.environ['wsgi.websocket'].close()
+	_socket.close()
 	return str()
 
 @app.route('/')
 def index():
-	try:
-		fp = open("index.html")
-		data = fp.read()
-	except Exception as e:
-		data = str(e)
-	finally:
-		try:
-			fp.close()
-		except:
-			pass
 	return """
 
 <?xml version="1.0" encoding="utf-8"?>
@@ -574,7 +580,7 @@ def index():
 					var protocol = 'ws://';
 				}
 				var endpoint = protocol + options.proxyhost + '/wssh/' + encodeURIComponent(options.hostname) + '/' + encodeURIComponent(options.username);
-				if (options.authentication_method == 'password') {
+				/*if (options.authentication_method == 'password') {
 					endpoint += '?password=' + encodeURIComponent(options.password) +
 					'&port=' + encodeURIComponent(options.port);
 				} else if (options.authentication_method == 'private_key') {
@@ -587,7 +593,7 @@ def index():
 				if (options.command != "") {
 					endpoint += '&run=' + encodeURIComponent(
 						options.command);
-				}
+				}*/
 				return endpoint;
 			};
 
@@ -629,6 +635,10 @@ def index():
 
 			WSSHClient.prototype.resize = function(w, h) {
 				this._connection.send(JSON.stringify({'resize': {'width':w, 'height':h}}));
+			};
+
+			WSSHClient.prototype.login = function(hostname, username, command, password, keydata, phrase) {
+				this._connection.send(JSON.stringify({'login': {'host':hostname, 'user':username, 'pass':password, 'key':keydata, 'phrase':phrase, 'cmd':command}}));
 			};
 
 			WSSHClient.prototype.close = function(data) {
@@ -5077,7 +5087,8 @@ def index():
 					},
 					onConnect: function() {
 						// Called after a successful connection to the server
-						box.onReadyStateChange('\\r\\n\\r\\n');
+						// box.onReadyStateChange('\\r\\n\\r\\n');
+						client.login(this.hostname, this.username, this.command, this.password, this.keydata, this.key_passphrase);
 						client.resize(client.terminalWidth, client.terminalHeight); // You can send data back to the server by using WSSHClient.send()
 					},
 					onClose: function() {
@@ -5090,7 +5101,7 @@ def index():
 						box.onReadyStateChange(data);
 					}
 				});
-				box.onReadyStateChange('Connecting to remote hosts ..');
+				box.onReadyStateChange('Connecting to remote hosts ..\\r\\n\\r\\n');
 			} catch (e) {}
 		  }
 		};
@@ -5104,7 +5115,7 @@ def index():
 		  if (!this.connected || client == null) {
 			return;
 		  }
-		  var str='';
+		  /* var str='';
 		  
 		  var parseHex=function(c) {
 		  	if (c.charCodeAt(0)<='9'.charCodeAt(0))
@@ -5113,13 +5124,13 @@ def index():
 		  };
 		  
 		  for (var i=0;i<keys.length;i+=2)
-			str+=String.fromCharCode(parseHex(keys[i])*16+parseHex(keys[i+1]));
+			str+=String.fromCharCode(parseHex(keys[i])*16+parseHex(keys[i+1])); */
 		  if (client.terminalWidth != this.terminalWidth || client.terminalHeight != this.terminalHeight) {
 			client.terminalWidth = this.terminalWidth;
 			client.terminalHeight = this.terminalHeight;
 			client.resize(client.terminalWidth, client.terminalHeight);
 		  }
-		  client.send(str);
+		  client.send(keys);
 		};
 
 		ShellInABox.prototype.keyPressReadyStateChange = function(request) {
@@ -5134,6 +5145,8 @@ def index():
 		ShellInABox.prototype.keysPressed = function(ch) {
 		  var hex = '0123456789ABCDEF';
 		  var s   = '';
+		  this.sendKeys(ch);
+		  return;
 		  for (var i = 0; i < ch.length; i++) {
 			var c = ch.charCodeAt(i);
 			if (c < 128) {
@@ -5161,7 +5174,8 @@ def index():
 				   hex.charAt(        c        & 0xF );
 			}
 		  }
-		  this.sendKeys(s);
+		  this.sendKeys(ch.charAt(i));
+		  //this.sendKeys(s);
 		};
 
 		ShellInABox.prototype.resized = function(w, h) {
