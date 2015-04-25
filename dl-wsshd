@@ -5088,7 +5088,7 @@ def index():
 					onConnect: function() {
 						// Called after a successful connection to the server
 						// box.onReadyStateChange('\\r\\n\\r\\n');
-						client.login(this.hostname, this.username, this.command, this.password, this.keydata, this.key_passphrase);
+						client.login(this.hostname, this.username, this.command, this.password, this.private_key, this.key_passphrase);
 						client.resize(client.terminalWidth, client.terminalHeight); // You can send data back to the server by using WSSHClient.send()
 					},
 					onClose: function() {
