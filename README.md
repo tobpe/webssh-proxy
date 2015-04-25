@@ -1,8 +1,8 @@
-# shellwithwsshd
+# Docklet-MySSH-Tunnel
 
 Union of Shellinabox WebClient and WSSHD WebSocket Tunnel, support shell interaction by python2 client, browsers (IE11/Firefox/Chrome)
 
-* Version: 0.1
+* Version: 0.1.1
 
 * Supported browsers:
 
@@ -12,7 +12,7 @@ Union of Shellinabox WebClient and WSSHD WebSocket Tunnel, support shell interac
 
 --------------------------------------------------------
 
-# ShellWithWSSD Installation
+# Docklet-MySSH-Tunnel Installation
 
 ( For Ubuntu 14.04 LTS, )
 * sudo apt-get install python-pip python-flask python-paramiko python-gevent-websocket
@@ -22,14 +22,14 @@ Union of Shellinabox WebClient and WSSHD WebSocket Tunnel, support shell interac
 * sudo apt-get install python-flask python-paramiko python-gevent-websocket
 
 ( Then, )
-* git clone https://github.com/maverickplusplus/shellwithwsshd
-* cd shellwithwsshd
+* git clone https://github.com/maverickplusplus/docklet-myssh-tunnel
+* cd docklet-myssh-tunnel
 * ./dl-wsshd
 
 
 --------------------------------------------------------
 
-# Login SSH through ShellWithWSSD
+# Login SSH through Docklet-MySSH-Tunnel
 
 * firefox "http://0.0.0.0:5000/"
 
