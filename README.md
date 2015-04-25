@@ -14,14 +14,16 @@ Union of Shellinabox WebClient and WSSHD WebSocket Tunnel, support shell interac
 
 # ShellWithWSSD Installation
 
-* sudo apt-get install python-pip
-* sudo pip install flask
-* sudo pip install paramiko
-* sudo pip install gevent-websocket
-* 
+( For Ubuntu 14.04 LTS, )
+* sudo apt-get install python-pip python-flask python-paramiko python-gevent-websocket
+* sudo pip install paramiko --upgrade
+
+( For Ubuntu 15.04 LTS, )
+* sudo apt-get install python-flask python-paramiko python-gevent-websocket
+
+( Then, )
 * git clone https://github.com/maverickplusplus/shellwithwsshd
 * cd shellwithwsshd
-* 
 * ./dl-wsshd
 
 
