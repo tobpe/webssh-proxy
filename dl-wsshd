@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-
-
 # Dependency: python-gevent-websocket, python-paramiko (must be lastest, >= 1.15.1-1), python-flask
+
 
 import time
 from gevent import monkey
@@ -4743,7 +4742,7 @@ def index():
 		  var lineBuf             = '';
 		  for (var i = 0; i < s.length; i++) {
 			var ch = s.charCodeAt(i);
-			if (this.utfEnabled) {
+			if (this.utfEnabled && ch<0x100) {
 			  // Decode UTF8 encoded character
 			  if (ch > 0x7F) {
 				if (this.utfCount > 0 && (ch & 0xC0) == 0x80) {
@@ -4782,6 +4781,7 @@ def index():
 				this.utfCount     = 0;
 			  }
 			}
+	        
 			var isNormalCharacter =
 			  (ch >= 32 && ch <= 127 || ch >= 160 ||
 			   this.utfEnabled && ch >= 128 ||
