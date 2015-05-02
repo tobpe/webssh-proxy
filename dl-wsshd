@@ -317,8 +317,8 @@ def index():
 		}
 
 		#vt100 #cursor.bright {
-		  background-color:     black;
-		  color:                white;
+		  background-color:     white;
+		  color:                black;
 		}
 
 		#vt100 #cursor.dim {
@@ -1423,7 +1423,7 @@ def index():
 				               '<div id="menu"></div>' +
 				               '<div id="keyboard" unselectable="on">' +
 				               '</div>' +
-				               '<div id="scrollable">' +
+				               '<div id="scrollable" style="background:black;color:white">' +
 				                 /*'<table id="kbd_button">' +
 				                   '<tr><td width="100%">&nbsp;</td>' +
 				                   '<td><img id="kbd_img" src="keyboard.png" /></td>' +
@@ -5305,7 +5305,7 @@ def index():
     
   </head>
   
-  <body onload="setTimeout('ttyLogin()', 200)" scroll="no">
+  <body onload="setTimeout('ttyLogin()', 1000)" scroll="no">
     <input style="display:none" id="ssh_interface" ></input>
     <noscript>JavaScript must be enabled for ShellInABox</noscript>
   </body>
