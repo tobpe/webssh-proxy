@@ -122,13 +122,31 @@ class WSSHBridge(object):
 	def _forward_outbound(self, channel):
 		""" Forward outbound traffic (ssh -> websockets) """
 		try:
+			data = ''
 			while True:
 				wait_read(channel.fileno())
-				data = channel.recv(1024)
-				if not len(data):
+				data += channel.recv(1024)
+				if len(data)==0:
 					return
-				self._websocket.send(json.dumps({'data': data}))
+				try:
+					obj = json.dumps({'data': data})
+					data = ''
+				except:
+					succeed = False
+					endIndex = -1
+					dataLength = len(data)
+					while not succeed:
+						try:
+							obj = json.dumps({'data': data[:endIndex]})
+							data = data[endIndex:]
+							succeed = True
+						except:
+							endIndex = endIndex-1
+							assert -endIndex < dataLength
+				self._websocket.send(obj)
 				time.sleep(0.1)
+		except Exception as e:
+			print e
 		finally:
 			self.close()
 
@@ -5282,7 +5300,7 @@ def index():
         if (params != null && params != 'undefined')
 		    data = eval('('+params+')');
         else {
-            var proxyhost = prompt("enter the proxy host of wsshd: ", "0.0.0.0:5000");
+            var proxyhost = location.host; //prompt("enter the proxy host of wsshd: ", "0.0.0.0:5000");
             if (!proxyhost) return;
             var hostname = prompt("enter the target host of ssh-server: ", "test-user@0.0.0.0");
             if (!hostname) return;
