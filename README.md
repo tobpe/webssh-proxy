@@ -2,13 +2,13 @@
 
 Union of Shellinabox WebClient and WSSHD WebSocket Tunnel, support shell interaction by python2 client, browsers (IE11/Firefox/Chrome)
 
-* Version: 0.1.1
+* Version: 0.1.2
 
 * Supported browsers:
 
-	IE-10 / IE-11
-	Firefox / Iceweasel
-	Chrome / Chromium
+-	IE-10 / IE-11
+-	Firefox / Iceweasel
+-	Chrome / Chromium
 
 --------------------------------------------------------
 
