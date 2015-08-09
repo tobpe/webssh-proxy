@@ -505,9 +505,9 @@ def index():
 		#vt100 .ansi12              { color:            #5c5cff; }
 		#vt100 .ansi13              { color:            #ff00ff; }
 		#vt100 .ansi14              { color:            #00ffff; }
-		#vt100 .ansi15              { color:            #ffffff; }
+		#vt100 .ansi15              { color:            #000000; }
 
-		#vt100 .bgAnsi0             { background-color: #000000; }
+		#vt100 .bgAnsi0             { background-color: #ffffff; }
 		#vt100 .bgAnsi1             { background-color: #cd0000; }
 		#vt100 .bgAnsi2             { background-color: #00cd00; }
 		#vt100 .bgAnsi3             { background-color: #cdcd00; }
