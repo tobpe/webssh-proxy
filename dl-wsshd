@@ -2,7 +2,6 @@
 
 # Dependency: python-gevent-websocket, python-paramiko (must be lastest, >= 1.15.1-1), python-flask
 
-
 import time
 from gevent import monkey
 monkey.patch_all()
@@ -27,10 +26,6 @@ class WSSHBridge(object):
 	""" WebSocket to SSH Bridge Server """
 
 	def __init__(self, websocket):
-		""" Initialize a WSSH Bridge
-
-		The websocket must be the one created by gevent-websocket
-		"""
 		self._websocket = websocket
 		self._ssh = paramiko.SSHClient()
 		self._ssh.set_missing_host_key_policy(
@@ -38,11 +33,6 @@ class WSSHBridge(object):
 		self._tasks = []
 
 	def _load_private_key(self, private_key, passphrase=None):
-		""" Load a SSH private key (DSA or RSA) from a string
-
-		The private key may be encrypted. In that case, a passphrase
-		must be supplied.
-		"""
 		key = None
 		last_exception = None
 		for pkey_class in (RSAKey, DSSKey):
@@ -50,8 +40,6 @@ class WSSHBridge(object):
 				key = pkey_class.from_private_key(StringIO(private_key),
 					passphrase)
 			except PasswordRequiredException as e:
-				# The key file is encrypted and no passphrase was provided.
-				# There's no point to continue trying
 				raise
 			except SSHException as e:
 				last_exception = e
@@ -65,20 +53,6 @@ class WSSHBridge(object):
 	def open(self, hostname, port=22, username=None, password=None,
 					private_key=None, key_passphrase=None,
 					allow_agent=False, timeout=None):
-		""" Open a connection to a remote SSH server
-
-		In order to connect, either one of these credentials must be
-		supplied:
-			* Password
-				Password-based authentication
-			* Private Key
-				Authenticate using SSH Keys.
-				If the private key is encrypted, it will attempt to
-				load it using the passphrase
-			* Agent
-				Authenticate using the *local* SSH agent. This is the
-				one running alongside wsshd on the server side.
-		"""
 		try:
 			pkey = None
 			if private_key:
@@ -125,7 +99,7 @@ class WSSHBridge(object):
 			data = ''
 			while True:
 				wait_read(channel.fileno())
-				data += channel.recv(1024)
+				data += channel.recv(102400)
 				if len(data)==0:
 					return
 				try:
@@ -144,7 +118,6 @@ class WSSHBridge(object):
 							endIndex = endIndex-1
 							assert -endIndex < dataLength
 				self._websocket.send(obj)
-				time.sleep(0.1)
 		except Exception as e:
 			print e
 		finally:
@@ -557,7 +530,7 @@ def index():
 				client.connect({
 					proxyhost: '0.0.0.0:5000',
 		
-					username: 'test-user',
+					username: 'root',
 					hostname: 'localhost',
 					authentication_method: 'password', // can either be password or private_key
 					password: '123456', // do not provide when using private_key
@@ -1983,9 +1956,9 @@ def index():
 		  }
 		  // Bring up context menu.
 		  if (button == 2 && !event.shiftKey) {
-			if (type == 0 /* MOUSE_DOWN */) {
-			  this.showContextMenu(position[0], position[1]);
-			}
+			//if (type == 0 /* MOUSE_DOWN */) {
+			//  this.showContextMenu(position[0], position[1]);
+			//}
 			return this.cancelEvent(event);
 		  }
 
@@ -5038,6 +5011,8 @@ def index():
 		  this.keysInFlight = false;
 		  this.connected    = false;
 		  this.superClass.constructor.call(this, container);
+                  this.collectPrompt = 0;
+                  this.collectInput = '';
 
 		  // We have to initiate the first sendRequest from a timer. Otherwise,
 		  // Chrome never realizes that the page has loaded.
@@ -5077,6 +5052,10 @@ def index():
 
 		ShellInABox.prototype.sendRequest = function(request) {
 		  var box = this;
+		  if (request == 'prompt') {
+			box.vt100('Enter the SSH hostname or host IP: ');
+			return;
+		  }
 		  if (client == null) {
 			var notProvideKey = (request.private_key==undefined ||
 						!request.private_key || request.private_key==null || request.private_key=='');
@@ -5161,10 +5140,43 @@ def index():
 		};
 
 		ShellInABox.prototype.keysPressed = function(ch) {
+		  if (this.collectPrompt>=0) {
+			var ascii = ch.charCodeAt(0);
+			if (this.collectPrompt==0) {
+				if (ascii==127) {
+					if (this.collectInput.length!=0) {
+						this.vt100('\\b \\b');
+						this.collectInput = this.collectInput.substring(0, this.collectInput.length-1);
+					}
+				} else if (ascii==13) {
+					if (this.collectInput == '')
+						this.collectInput = '0.0.0.0';
+					if (this.collectInput.indexOf('@')=='-1')
+						this.collectInput = 'root@'+this.collectInput;
+					this.collectPrompt = 1;
+					this.loginPassword = '';
+					this.vt100('\\r\\nEnter the password for '+this.collectInput+': ');
+				} else if (ch.match("[0-9a-zA-Z`~!@#$%^&*()_+-={};':/?><.,\|]")) {
+					this.vt100(ch);
+					this.collectInput += ch;
+				}
+			} else {
+				if (ascii==127) {
+					if (this.loginPassword.length!=0)
+						this.loginPassword = this.loginPassword.substring(0, this.loginPassword.length-1);
+				} else if (ascii==13) {
+					this.vt100("\\r\\n");
+					var parts = this.collectInput.split("@");
+					var data = { proxyhost: window.location.host, hostname: parts[1], username: parts[0], password: this.loginPassword, command: 'bash', };
+					this.collectPrompt = -1;
+					this.sendRequest(data);
+				} else
+					this.loginPassword+=ch;
+			}
+		  }
+		  return this.sendKeys(ch);
 		  var hex = '0123456789ABCDEF';
 		  var s   = '';
-		  this.sendKeys(ch);
-		  return;
 		  for (var i = 0; i < ch.length; i++) {
 			var c = ch.charCodeAt(i);
 			if (c < 128) {
@@ -5300,21 +5312,12 @@ def index():
         if (params != null && params != 'undefined')
 		    data = eval('('+params+')');
         else {
-            var proxyhost = location.host; //prompt("enter the proxy host of wsshd: ", "0.0.0.0:5000");
-            if (!proxyhost) return;
-            var hostname = prompt("enter the target host of ssh-server: ", "test-user@0.0.0.0");
-            if (!hostname) return;
-            var username = 'root', at = hostname.indexOf('@');
-            if (at!=-1)
-            	username = hostname.substring(0, at), hostname = hostname.substring(at+1);
-            var password = prompt("enter the password to login the target host for user '"+username+"': ", "123456");
-            if (!hostname) return;
-            
-            data = { proxyhost: proxyhost, hostname: hostname, username: username, password: password, /* or privide 'private_key' */ command: 'bash', };
             
             // [SSH Key Sample]
             //
-            // data = { proxyhost: proxyhost, hostname: '192.168.1.2', username: 'root', private_key: '-----BEGIN RSA PRIVATE KEY-----\\nMIIEpgIBAAKCAQEA14yPjWqvG0UfHayD08z1AGJT1WR2GrmGfa3rP6yxp/txcXPv\\nbuzjA+0E0kgxyHDO5007W2S6N0M4pg7iyOKPotGwTEkrrXxGuNIFIpSJeSkr7B+y\\nKsKEPAhn5xatQDLlOVQZ0RP3o/glh4aSHrxj599d9Z0AVnTAYojrkphDPtoHA1pU\\n6lhCut4E7yVUmlEXR/mcGzj5uQJ2fCjDdy0CXC1z5+2o5X+BzqonEZYMqWffs+7q\\n7+OXykuFWCP4/PlGBHmLDzJfsmJiDAoJc8nmDODhfHwjC7SskPc5rt6oQA0++FI4\\nHBv2hOA9Xisk3WExSJeDh+c87gqSacHQLe61dQIDAQABAoIBAQCZ657K/mbCk25v\\n0zRj95TwzEZPOKj51ofKkXpPAvPuH6jXulE9Jd3KfOOXgcRC/QNSupzrW5d6RP9b\\n3X9mshqdyx0YrJuLDBa4fgj6s5UjtxnNSKkCzdp9wAbqRxA6qt1zPbId0iNhrJ6o\\nE5meZyr0dlXzQUTvd/m1o06NZTuH0ftgE0aej0ht445nWBdx2+Cc4XDyHyyxJ+MC\\ndFGasIO77Tr+Y+BogU9BNB2D16rySHPWjI0ZZGCden17QUXt7as56qoMqUDbgI0E\\nT6AUffwbsufL7VeryEajZNhbdcF8/GFAbR0ZcQeClbsEKsVwvTzX0R66lF0vUhIa\\niyCqx7ChAoGBAPlUOL+e15quYsgHrJDbnp3rVhUc79b61oJARZ6iSUuOdDcQuDf1\\nK79xab2VTfuYBl7/VVtU9ElnZsVKYPqGzddxyvOS59yOyHDlp/X3aDnjyYU2wpvL\\nIYt9+a1Vui5g5XrCVo9Q/J5diXZ/Ejw32JnSWTsNREQ1W6W7NI3/NJjNAoGBAN1Q\\n9qvOQ0fkgVdPNLjQ0trnAds/bJg2sYkU7Txve3SGM20Onf0ghW4TmrA3JelxKA3U\\nyjQ0M6gFlnX9FZqeTR8/Eg/k0csCB0nbAXQryednj5ZZtORMuW3jeT3nYi+J3Vqe\\n4K1sdbrklxpm6wmtqf63lcapbwW4aIxN8PfdZ69JAoGBAOMAPzqXUA1QwDcGZaLt\\nkZiN7y4BzouYjTzBb6FieAEGjeCkpFSuL0p545/sE7gBTauoJPqmelNqhTMS6QCv\\nQzHoNLNXCSrSBMRlE2rp+kbakVtr4/scEkqCQ5QA/SXEqqn9zfll7tnwp3rvbpbM\\n8bP6w6r0BTdkrTBTJSIzPJvxAoGBALq52sUt6/o2QyJlA3iDR8PFb/2Jz5fFXZjo\\n/RgmfyTbLXxv/sBYtfsfsz3F6cjB3id9R3UwLf0vabj25UllEnCwiA684nzDo16e\\n1uUrJNiGudECsuqECVc7u0mNdXvid85DihEIF3St9Qcjml66FVmBj27j+XX8Fsl5\\n4TtfpGFxAoGBAOm/+l+/KIRP2Go+SquL0+BUbx+muy2AXSmV2of9mP4o6fV7kHD5\\nNgxDLKwRaXbEW/KNd5vAUuQbB//LVusG28oj69kJo4aXkUXRQ/FT/A+IseTaX3Ge\\nzgEom+QVBy99fmAq/B8Io+bZg5znTx4UZ5PByI/n+DsVPldVarMku5CI\\n-----END RSA PRIVATE KEY-----', command: 'bash', };
+            // data = { proxyhost: window.location.host, hostname: '192.168.1.2', username: 'root', private_key: '-----BEGIN RSA PRIVATE KEY-----\\nMIIEpgIBAAKCAQEA14yPjWqvG0UfHayD08z1AGJT1WR2GrmGfa3rP6yxp/txcXPv\\nbuzjA+0E0kgxyHDO5007W2S6N0M4pg7iyOKPotGwTEkrrXxGuNIFIpSJeSkr7B+y\\nKsKEPAhn5xatQDLlOVQZ0RP3o/glh4aSHrxj599d9Z0AVnTAYojrkphDPtoHA1pU\\n6lhCut4E7yVUmlEXR/mcGzj5uQJ2fCjDdy0CXC1z5+2o5X+BzqonEZYMqWffs+7q\\n7+OXykuFWCP4/PlGBHmLDzJfsmJiDAoJc8nmDODhfHwjC7SskPc5rt6oQA0++FI4\\nHBv2hOA9Xisk3WExSJeDh+c87gqSacHQLe61dQIDAQABAoIBAQCZ657K/mbCk25v\\n0zRj95TwzEZPOKj51ofKkXpPAvPuH6jXulE9Jd3KfOOXgcRC/QNSupzrW5d6RP9b\\n3X9mshqdyx0YrJuLDBa4fgj6s5UjtxnNSKkCzdp9wAbqRxA6qt1zPbId0iNhrJ6o\\nE5meZyr0dlXzQUTvd/m1o06NZTuH0ftgE0aej0ht445nWBdx2+Cc4XDyHyyxJ+MC\\ndFGasIO77Tr+Y+BogU9BNB2D16rySHPWjI0ZZGCden17QUXt7as56qoMqUDbgI0E\\nT6AUffwbsufL7VeryEajZNhbdcF8/GFAbR0ZcQeClbsEKsVwvTzX0R66lF0vUhIa\\niyCqx7ChAoGBAPlUOL+e15quYsgHrJDbnp3rVhUc79b61oJARZ6iSUuOdDcQuDf1\\nK79xab2VTfuYBl7/VVtU9ElnZsVKYPqGzddxyvOS59yOyHDlp/X3aDnjyYU2wpvL\\nIYt9+a1Vui5g5XrCVo9Q/J5diXZ/Ejw32JnSWTsNREQ1W6W7NI3/NJjNAoGBAN1Q\\n9qvOQ0fkgVdPNLjQ0trnAds/bJg2sYkU7Txve3SGM20Onf0ghW4TmrA3JelxKA3U\\nyjQ0M6gFlnX9FZqeTR8/Eg/k0csCB0nbAXQryednj5ZZtORMuW3jeT3nYi+J3Vqe\\n4K1sdbrklxpm6wmtqf63lcapbwW4aIxN8PfdZ69JAoGBAOMAPzqXUA1QwDcGZaLt\\nkZiN7y4BzouYjTzBb6FieAEGjeCkpFSuL0p545/sE7gBTauoJPqmelNqhTMS6QCv\\nQzHoNLNXCSrSBMRlE2rp+kbakVtr4/scEkqCQ5QA/SXEqqn9zfll7tnwp3rvbpbM\\n8bP6w6r0BTdkrTBTJSIzPJvxAoGBALq52sUt6/o2QyJlA3iDR8PFb/2Jz5fFXZjo\\n/RgmfyTbLXxv/sBYtfsfsz3F6cjB3id9R3UwLf0vabj25UllEnCwiA684nzDo16e\\n1uUrJNiGudECsuqECVc7u0mNdXvid85DihEIF3St9Qcjml66FVmBj27j+XX8Fsl5\\n4TtfpGFxAoGBAOm/+l+/KIRP2Go+SquL0+BUbx+muy2AXSmV2of9mP4o6fV7kHD5\\nNgxDLKwRaXbEW/KNd5vAUuQbB//LVusG28oj69kJo4aXkUXRQ/FT/A+IseTaX3Ge\\nzgEom+QVBy99fmAq/B8Io+bZg5znTx4UZ5PByI/n+DsVPldVarMku5CI\\n-----END RSA PRIVATE KEY-----', command: 'bash', };
+
+            data = 'prompt';
         }
         new ShellInABox(data);
       }
@@ -5330,12 +5333,6 @@ def index():
 </html>
 
 """
-
-from SocketServer import ThreadingMixIn
-from BaseHTTPServer import HTTPServer
-
-class MultiThreadedHTTPServer(ThreadingMixIn, HTTPServer):
-        pass
 
 if __name__ == '__main__':
 	import argparse
