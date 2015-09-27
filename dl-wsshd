@@ -179,6 +179,18 @@ class WSSHBridge(object):
 
 app = Flask(__name__)
 
+
+@app.route('/')
+def index():
+	try:
+		return app.send_static_file("index.html")
+	except:
+		return '<META HTTP-EQUIV="Refresh" CONTENT="0;URL=/terminal">'
+
+@app.route('/<path:path>')
+def page(path):
+        return app.send_static_file(path)
+
 @app.route('/wssh/<hostname>/<username>')
 def connect(hostname, username):
 	print(request.headers)
@@ -233,8 +245,9 @@ def connect(hostname, username):
 	_socket.close()
 	return str()
 
-@app.route('/')
-def index():
+
+@app.route('/terminal')
+def terminal():
 	return """
 
 <?xml version="1.0" encoding="utf-8"?>

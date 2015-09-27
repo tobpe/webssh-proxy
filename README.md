@@ -27,5 +27,5 @@ Union of Shellinabox WebClient and WSSHD WebSocket Tunnel, support shell interac
 
 # Login SSH through websocket-myssh-tunnel
 
-* firefox "http://0.0.0.0:5000/"
+* firefox "http://0.0.0.0:5000/terminal"
 
