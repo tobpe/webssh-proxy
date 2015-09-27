@@ -5347,6 +5347,13 @@ def terminal():
 
 """
 
+"""
+:openssl genrsa -des3 -out server.key 2048
+:openssl rsa -in server.key -out server.key 
+:openssl req -new -x509 -key server.key -out ca.crt -days 3650
+http_server = WSGIServer((args.host, args.port), app, log=None, keyfile="keyfiles/server.key", certfile="keyfiles/ca.crt", handler_class=WebSocketHandler)
+"""
+
 if __name__ == '__main__':
 	import argparse
 	from gevent.pywsgi import WSGIServer
@@ -5369,14 +5376,6 @@ if __name__ == '__main__':
 
 	http_server = WSGIServer((args.host, args.port), app, log=None, handler_class=WebSocketHandler)
 
-"""
-openssl genrsa -des3 -out server.key 2048
-openssl rsa -in server.key -out server.key 
-openssl req -new -x509 -key server.key -out ca.crt -days 3650
-
-	http_server = WSGIServer((args.host, args.port), app, log=None, keyfile="keyfiles/server.key", certfile="keyfiles/ca.crt", handler_class=WebSocketHandler)
-
-"""
 	try:
 		http_server.serve_forever()
 	except KeyboardInterrupt:
