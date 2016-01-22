@@ -18,7 +18,7 @@ Union of Shellinabox WebClient and WSSHD WebSocket Tunnel, support shell interac
 * sudo apt-get install python-flask python-paramiko python-gevent-websocket
 
 ( Then )
-* git clone https://github.com/maverickplusplus/websocket-myssh-tunnel
+* git clone https://github.com/ghostplant/websocket-myssh-tunnel
 * cd websocket-myssh-tunnel
 * ./dl-wsshd
 
@@ -27,5 +27,5 @@ Union of Shellinabox WebClient and WSSHD WebSocket Tunnel, support shell interac
 
 # Login SSH through websocket-myssh-tunnel
 
-* firefox "http://0.0.0.0:5000/terminal"
+* firefox "http://0.0.0.0:8091/terminal"
 
