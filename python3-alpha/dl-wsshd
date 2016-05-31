@@ -1,7 +1,21 @@
 #!/usr/bin/python3
 
-import asyncio, asyncssh, websockets, sys
-import json
+from socketserver import ThreadingMixIn
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+from threading import Thread
+
+class ThreadingServer(ThreadingMixIn, HTTPServer):
+    pass
+
+server = ThreadingServer(('', 8023), SimpleHTTPRequestHandler)
+
+t = Thread(target=server.serve_forever)
+t.setDaemon(True)
+t.start()
+
+
+import asyncio, asyncssh, websockets
+import json, sys
 
 class TunnelSSHClientSession(asyncssh.SSHClientSession):
 	
