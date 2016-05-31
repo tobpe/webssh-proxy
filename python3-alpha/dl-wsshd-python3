@@ -1,0 +1,84 @@
+#!/usr/bin/python3
+
+import asyncio, asyncssh, websockets, sys
+import json
+
+class TunnelSSHClientSession(asyncssh.SSHClientSession):
+	
+	def __init__(self, websocket):
+		self._websocket = websocket
+
+	def connection_made(self, chan):
+		self._chan = chan
+
+	def session_started(self):
+		print('A new session logged in.', file=sys.stderr)
+
+	def data_received(self, data, datatype):
+		asyncio.async(self._websocket.send(data), loop=asyncio.get_event_loop())
+
+	def connection_lost(self, exc):
+		if exc:
+			print('SSH session error: ' + str(exc), file=sys.stderr)
+
+@asyncio.coroutine
+def wait_and_close(_websocket, chan):
+	yield from chan.wait_closed()
+	# yield from _websocket.send()
+	# yield from _websocket.close_connection()
+
+@asyncio.coroutine
+def websocket_to_channel(_websocket, conn):
+	try:
+		def ssh_session_factory():
+			return TunnelSSHClientSession(_websocket)
+		
+		chan, session = yield from conn.create_session(ssh_session_factory, 'bash', term_type='xterm', term_size=(80, 24))
+		asyncio.async(wait_and_close(_websocket, chan), loop=asyncio.get_event_loop())
+		while True:
+			data = yield from _websocket.recv()
+			if not data:
+				break
+			data = json.loads(data)
+			if data['type'] == 'data':
+				real_data = bytes.fromhex(data['request']).decode('utf-8')
+				chan.write(real_data)
+		
+		# self._chan.write_eof()
+	except websockets.exceptions.ConnectionClosed:
+		print('A previous session exited abnormally.', file=sys.stderr)
+	except BrokenPipeError:
+		print('A previous session exited normally.', file=sys.stderr)
+	except:
+		import traceback
+		traceback.print_exc()
+	finally:
+		try:
+			conn.close()
+		except:
+			pass
+
+@asyncio.coroutine
+def websocket_ssh_handler(_websocket, path):
+	try:
+		[null, hostname, s_port, username] = path.split('/')
+		password = yield from _websocket.recv()
+		conn, client = yield from asyncssh.create_connection(asyncssh.SSHClient, hostname, username=username, port=int(s_port), password=password, known_hosts=None)
+		yield from websocket_to_channel(_websocket, conn)
+	except asyncssh.misc.DisconnectError as e:
+		yield from _websocket.send(e.reason)
+	except:
+		import traceback
+		traceback.print_exc()
+
+import ssl
+ssl_context = None
+# ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
+# #openssl req -x509 -nodes -days 1000 -newkey rsa:2048 -keyout mycert.pem -out mycert.pem
+#ssl_context.load_cert_chain('mycert.pem')
+#ssl_context.verify_mode = ssl.CERT_REQUIRED
+start_server = websockets.serve(websocket_ssh_handler, '0.0.0.0', 8022, ssl=ssl_context)
+
+asyncio.get_event_loop().run_until_complete(start_server)
+asyncio.get_event_loop().run_forever()
+
