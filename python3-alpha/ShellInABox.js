@@ -2,7 +2,7 @@ serverSupportsSSL = true;
 disableSSLMenu    = false;
 suppressAllAudio  = true;
 linkifyURLs       = 1;
-userCSSList       = [ [ 'Black on White', true, true ], [ 'White On Black', false, false ], [ 'Color Terminal', true, true ], [ 'Monochrome', false, false ] ];
+userCSSList       = [[ 'White On Black', true, true ], [ 'Color Terminal', true, true ]];
 serverMessagesOrigin = false;
 
 // VT100.js -- JavaScript based terminal emulator
@@ -4743,7 +4743,7 @@ ShellInABox.prototype.reconnect = function() {
 
 ShellInABox.prototype.sendRequest = function(request) {
   data = {
-    type: (request == undefined) ? 'init':'data',
+    type: (request == undefined) ? 'notify':'data',
   	request: request,
   	width: this.terminalWidth,
   	height: this.terminalHeight,
@@ -4982,12 +4982,16 @@ ShellInABox.prototype.messageInit = function() {
   	websocket_server = '0.0.0.0';
   else
     websocket_server = window.location.hostname;
-  alert(websocket_server);
   websocket = new WebSocket('ws://'+websocket_server+':8022/'+hostname+'/22/'+username);
   
   websocket.onopen = function (evt) {
-    websocket.send(password);
-    shellInABox.sendRequest();
+    data = {
+      type: 'login',
+      password: password,
+      width: shellInABox.terminalWidth,
+      height: shellInABox.terminalHeight,
+    };
+    websocket.send(JSON.stringify(data));
   };
   websocket.onclose = function (evt) {
     shellInABox.sessionClosed();
