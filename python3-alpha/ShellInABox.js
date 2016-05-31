@@ -458,7 +458,7 @@ VT100.prototype.initializeUserCSSStyles = function() {
                           sheet.disabled = false;
                         }
                         if (!sheet.disabled) {
-                          label.innerHTML= '<img src="enabled.gif" />' +
+                          label.innerHTML= '&#9679;' +
                                            label.innerHTML;
                         }
                       } else {
@@ -497,7 +497,7 @@ VT100.prototype.initializeUserCSSStyles = function() {
       // both ends), or whether this is a on/off toggle, which can be grouped
       // together with other on/off options.
       group                             +=
-        '<li>' + (enabled ? '<img src="enabled.gif" />' : '') +
+        '<li>' + (enabled ? '&#9679;' : '') +
                  label +
         '</li>';
     }
@@ -871,29 +871,7 @@ VT100.prototype.initializeElements = function(container) {
       !this.getChildById(this.container, 'space')       ||
       !this.getChildById(this.container, 'input')       ||
       !this.getChildById(this.container, 'cliphelper')) {
-    // Only enable the "embed" object, if we have a suitable plugin. Otherwise,
-    // we might get a pointless warning that a suitable plugin is not yet
-    // installed. If in doubt, we'd rather just stay silent.
-    var embed                  = '';
-    try {
-      if (typeof navigator.mimeTypes["audio/x-wav"].enabledPlugin.name !=
-          'undefined') {
-        embed                  = typeof suppressAllAudio != 'undefined' &&
-                                 suppressAllAudio ? "" :
-        '<embed classid="clsid:02BF25D5-8C17-4B23-BC80-D3488ABDDC6B" ' +
-                       'id="beep_embed" ' +
-                       'src="beep.wav" ' +
-                       'autostart="false" ' +
-                       'volume="100" ' +
-                       'enablejavascript="true" ' +
-                       'type="audio/x-wav" ' +
-                       'height="16" ' +
-                       'width="200" ' +
-                       'style="position:absolute;left:-1000px;top:-1000px" />';
-      }
-    } catch (e) {
-    }
-
+    
     this.container.innerHTML   =
                        '<div id="reconnect" style="visibility: hidden">' +
                          '<input type="button" value="Connect" ' +
@@ -907,7 +885,7 @@ VT100.prototype.initializeElements = function(container) {
                        '<div id="scrollable">' +
                          '<table id="kbd_button">' +
                            '<tr><td width="100%">&nbsp;</td>' +
-                           '<td><img id="kbd_img" src="keyboard.png" /></td>' +
+                           '<td><input type="submit" id="kbd_img" value="keyboard" /></td>' +
                            '<td>&nbsp;&nbsp;&nbsp;&nbsp;</td></tr>' +
                          '</table>' +
                          '<pre id="lineheight">&nbsp;</pre>' +
@@ -924,27 +902,12 @@ VT100.prototype.initializeElements = function(container) {
                          '<pre><div><span id="space"></span></div></pre>' +
                          '<input type="text" id="input" autocorrect="off" autocapitalize="off" />' +
                          '<input type="text" id="cliphelper" />' +
-                         (typeof suppressAllAudio != 'undefined' &&
-                          suppressAllAudio ? "" :
-                         embed + '<bgsound id="beep_bgsound" loop=1 />') +
-                          '<iframe id="layout" src="keyboard.html" />' +
+                         '<iframe id="layout" src="keyboard.html" />' +
                         '</div>';
   }
 
   // Find the object used for playing the "beep" sound, if any.
-  if (typeof suppressAllAudio != 'undefined' && suppressAllAudio) {
-    this.beeper                = undefined;
-  } else {
-    this.beeper                = this.getChildById(this.container,
-                                                   'beep_embed');
-    if (!this.beeper || !this.beeper.Play) {
-      this.beeper              = this.getChildById(this.container,
-                                                   'beep_bgsound');
-      if (!this.beeper || typeof this.beeper.src == 'undefined') {
-        this.beeper            = undefined;
-      }
-    }
-  }
+  this.beeper                = undefined;
 
   // Initialize the variables for finding the text console and the
   // cursor.
@@ -971,7 +934,7 @@ VT100.prototype.initializeElements = function(container) {
                                                                  'cliphelper');
 
   // Add any user selectable style sheets to the menu
-  this.initializeUserCSSStyles();
+  //this.initializeUserCSSStyles();
 
   // Remember the dimensions of a standard character glyph. We would
   // expect that we could just check cursor.clientWidth/Height at any time,
@@ -2523,28 +2486,21 @@ VT100.prototype.showContextMenu = function(x, y) {
           '<li id="endclipboard">Paste</li>' +
           '<li id="browserclipboard">Paste from browser</li>' +
           '<hr />' +
-          '<li id="reset">Reset</li>' +
+          '<li id="reset">Clear Screen</li>' +
           '<hr />' +
           '<li id="beginconfig">' +
-             (this.utfEnabled ? '<img src="enabled.gif" />' : '') +
-             'Unicode</li>' +
-          '<li>' +
-             (this.visualBell ? '<img src="enabled.gif" />' : '') +
+             (this.visualBell ? '&#9679;' : '') +
              'Visual Bell</li>'+
           '<li>' +
-             (this.softKeyboard ? '<img src="enabled.gif" />' : '') +
+             (this.softKeyboard ? '&#9679;' : '') +
              'Onscreen Keyboard</li>' +
           '<li>' +
-             (this.disableAlt ? '<img src="enabled.gif" />' : '') +
+             (this.disableAlt ? '&#9679;' : '') +
              'Disable Alt Key</li>' +
           '<li id="endconfig">' +
-             (this.blinkingCursor ? '<img src="enabled.gif" />' : '') +
-             'Blinking Cursor</li>'+
-          (this.usercss.firstChild ?
-           '<hr id="beginusercss" />' +
-           this.usercss.innerHTML +
-           '<hr id="endusercss" />' :
-           '<hr />') +
+             (this.blinkingCursor ? '&#9679;' : '') +
+             'Blinking Cursor</li>' +
+          '<hr id="beginusercss" />' +
           '<li id="about">About...</li>' +
         '</ul>' +
       '</td></tr>' +
@@ -2567,15 +2523,15 @@ VT100.prototype.showContextMenu = function(x, y) {
 
   // Actions for default items
   var actions                 = [ this.copyLast, p, this.pasteBrowserFnc, this.reset,
-                                  this.toggleUTF, this.toggleBell,
+                                  this.toggleBell,
                                   this.toggleSoftKeyboard,
                                   this.toggleDisableAlt,
                                   this.toggleCursorBlinking ];
 
   // Actions for user CSS styles (if any)
-  for (var i = 0; i < this.usercssActions.length; ++i) {
-    actions[actions.length]   = this.usercssActions[i];
-  }
+  // for (var i = 0; i < this.usercssActions.length; ++i) {
+  //  actions[actions.length]   = this.usercssActions[i];
+  // }
   actions[actions.length]     = this.about;
 
   // Allow subclasses to dynamically add entries to the context menu
@@ -3249,14 +3205,9 @@ VT100.prototype.beep = function() {
   if (this.visualBell) {
     this.flashScreen();
   } else {
-    try {
-      this.beeper.Play();
-    } catch (e) {
-      try {
-        this.beeper.src = 'beep.wav';
-      } catch (e) {
-      }
-    }
+    var audio = document.getElementById('beep_sound');
+    if (audio.play != undefined)
+      audio.play();
   }
 };
 
@@ -3567,10 +3518,6 @@ VT100.prototype.openPrinterWindow = function() {
         'width=800,height=600,directories=no,location=no,menubar=yes,' +
         'status=no,toolbar=no,titlebar=yes,scrollbars=yes,resizable=yes');
       this.printWin.document.body.innerHTML =
-        '<link rel="stylesheet" href="' +
-          document.location.protocol + '//' + document.location.host +
-          document.location.pathname.replace(/[^/]*$/, '') +
-          'print-styles.css" type="text/css">\n' +
         '<div id="options"><input id="autoprint" type="checkbox"' +
           (this.autoprint ? ' checked' : '') + '>' +
           'Automatically, print page(s) when job is ready' +
@@ -4320,6 +4267,7 @@ VT100.prototype.renderString = function(s, showCursor) {
 };
 
 VT100.prototype.vt100 = function(s) {
+  this.utfEnabled = true;
   this.cursorNeedsShowing = this.hideCursor();
   this.respondString      = '';
   var lineBuf             = '';
@@ -4910,69 +4858,6 @@ ShellInABox.prototype.resized = function(w, h) {
   }
 };
 
-ShellInABox.prototype.toggleSSL = function() {
-  if (document.location.hash != '') {
-    if (this.nextUrl.match(/\?plain$/)) {
-      this.nextUrl    = this.nextUrl.replace(/\?plain$/, '');
-    } else {
-      this.nextUrl    = this.nextUrl.replace(/[?#].*/, '') + '?plain';
-    }
-    if (!this.session) {
-      parent.location = this.nextUrl;
-    }
-  } else {
-    this.nextUrl      = this.nextUrl.match(/^https:/)
-           ? this.nextUrl.replace(/^https:/, 'http:').replace(/\/*$/, '/plain')
-           : this.nextUrl.replace(/^http/, 'https').replace(/\/*plain$/, '');
-  }
-  if (this.nextUrl.match(/^[:]*:\/\/[^/]*$/)) {
-    this.nextUrl     += '/';
-  }
-  if (this.session && this.nextUrl != this.url) {
-    alert('This change will take effect the next time you login.');
-  }
-};
-
-ShellInABox.prototype.extendContextMenu = function(entries, actions) {
-  // Modify the entries and actions in place, adding any locally defined
-  // menu entries.
-  var oldActions            = [ ];
-  for (var i = 0; i < actions.length; i++) {
-    oldActions[i]           = actions[i];
-  }
-  for (var node = entries.firstChild, i = 0, j = 0; node;
-       node = node.nextSibling) {
-    if (node.tagName == 'LI') {
-      actions[i++]          = oldActions[j++];
-      if (node.id == "endconfig") {
-        node.id             = '';
-        if (typeof serverSupportsSSL != 'undefined' && serverSupportsSSL &&
-            !(typeof disableSSLMenu != 'undefined' && disableSSLMenu)) {
-          // If the server supports both SSL and plain text connections,
-          // provide a menu entry to switch between the two.
-          var newNode       = document.createElement('li');
-          var isSecure;
-          if (document.location.hash != '') {
-            isSecure        = !this.nextUrl.match(/\?plain$/);
-          } else {
-            isSecure        =  this.nextUrl.match(/^https:/);
-          }
-          newNode.innerHTML = (isSecure ? '&#10004; ' : '') + 'Secure';
-          if (node.nextSibling) {
-            entries.insertBefore(newNode, node.nextSibling);
-          } else {
-            entries.appendChild(newNode);
-          }
-          actions[i++]      = this.toggleSSL;
-          node              = newNode;
-        }
-        node.id             = 'endconfig';
-      }
-    }
-  }
-
-};
-
 ShellInABox.prototype.messageInit = function() {
   shellInABox = this;
   
@@ -4999,8 +4884,19 @@ ShellInABox.prototype.messageInit = function() {
     shellInABox.sessionClosed();
   };
   websocket.onmessage = function (evt) {
-    shellInABox.onReadyStateChange(evt.data);
-    shellInABox.sendKeys('');
+    if (evt.data.length == undefined) {
+      var fileReader = new FileReader();
+      fileReader.onload = function() {
+        var bufView = new Uint8Array(this.result);
+        var plainString = '';
+        for (var i = 0; i<bufView.length; ++i)
+          plainString += String.fromCharCode(bufView[i]);
+        shellInABox.onReadyStateChange(plainString);
+      };
+      fileReader.readAsArrayBuffer(evt.data);
+    } else {
+        shellInABox.onReadyStateChange(evt.data);
+    }
   };
   websocket.onerror = function (evt) {
     shellInABox.sessionClosed();
