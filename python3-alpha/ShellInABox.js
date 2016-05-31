@@ -292,7 +292,7 @@ VT100.prototype.getUserSettings = function() {
   // If the menu is unchanged from last time, default values can be
   // looked up in a cookie associated with this page.
   this.signature            = 3;
-  this.utfPreferred         = true;
+  this.utfPreferred         = false;
   this.visualBell           = typeof suppressAllAudio != 'undefined' &&
                               suppressAllAudio;
   this.autoprint            = true;
@@ -1026,6 +1026,8 @@ VT100.prototype.initializeElements = function(container) {
                          vt100.hideContextMenu();
                          vt100.resizer();
                          vt100.showCurrentSize();
+                         if (window.shellinabox != undefined)
+                           window.shellinabox.sendRequest();
                         }
                       }(this));
 
@@ -4822,8 +4824,8 @@ ShellInABox.prototype.sendKeys = function(keys) {
   }
   data = {
     type: 'data',
-      request: keys,
-      width: this.terminalWidth,
+    request: keys,
+    width: this.terminalWidth,
     height: this.terminalHeight,
   };
   websocket.send(JSON.stringify(data));
