@@ -1,31 +1,50 @@
-# websocket-myssh-tunnel
+# websocket-myssh-tunnel (python3 based)
 
-Union of Shellinabox WebClient and WSSHD WebSocket Tunnel, support shell interaction by python2 client, browsers (IE11/Firefox/Chrome)
+Union of Shellinabox Frontend and Asyncssh Backend, using WebSocket to build SSH Tunnel, providing more features compared with original Shellinabox.
 
-* Version: 0.2.0
+--------------------------------------------------------
 
-* Supported browsers:
+*Features of websocket-myssh-tunnel*:
 
--	IE-10 / IE-11
+- Inherit from Shellinabox: UTF-8 Support, Color Terminal, Beep Sound, OnScreen Keyboard, ..
+- Tunnel Feature Support: Able to connect an another SSH server 
+- Quick Cleaning: Able to detect the abnormally exited session and instantly close the corresponding session resources (Shellinabox will hang running processes for a while when users abnormally quit the session)
+
+
+*Supported All mainstream browsers*:
+
+-	IE-11
 -	Firefox / Iceweasel
 -	Chrome / Chromium
 
 --------------------------------------------------------
 
-# websocket-myssh-tunnel Installation
+### Getting started on Ubuntu (>=16.04 LTS)
 
-( For Ubuntu >= 14.04 )
-* sudo apt-get install python-flask python-paramiko python-gevent-websocket
-
-( Then )
-* git clone https://github.com/ghostplant/websocket-myssh-tunnel
-* cd websocket-myssh-tunnel
-* ./dl-wsshd
-
+```sh
+sudo apt-get install python3-websockets python3-asyncssh
+git clone https://github.com/ghostplant/websocket-myssh-tunnel
+cd websocket-myssh-tunnel
+./dl-wsshd
+```
 
 --------------------------------------------------------
 
-# Login SSH through websocket-myssh-tunnel
+### Next, open your browser to get access the terminal
 
-* firefox "http://0.0.0.0:8091/terminal"
+```sh
+firefox "http://0.0.0.0:8023/"
+```sh
+
+Currently, websocket-myssh-tunnel uses two ports, including 8022 for websocket server, and 8023 for simple HTTP server.
+
+--------------------------------------------------------
+
+### Future work
+
+- Hide the password when login
+- Add SSL support to enhance the security
+- ..
+
+Issues are welcomed to provide.
 
