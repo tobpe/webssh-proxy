@@ -13,9 +13,9 @@ Union of Shellinabox Frontend and Asyncssh Backend, using WebSocket to build SSH
 
 *Supported All mainstream browsers*:
 
--	IE-11
--	Firefox / Iceweasel
--	Chrome / Chromium
+-	IE 11 (only beep sound is not supported)
+-	Firefox/Iceweasel latest (all supported)
+-	Chrome/Chromium latest (all supported)
 
 --------------------------------------------------------
 
@@ -34,7 +34,7 @@ cd websocket-myssh-tunnel
 
 ```sh
 firefox "http://0.0.0.0:8023/"
-```sh
+```
 
 Currently, websocket-myssh-tunnel uses two ports, including 8022 for websocket server, and 8023 for simple HTTP server.
 
@@ -46,5 +46,5 @@ Currently, websocket-myssh-tunnel uses two ports, including 8022 for websocket s
 - Add SSL support to enhance the security
 - ..
 
-Issues are welcomed to provide.
+Any issues are welcomed to provide.
 
