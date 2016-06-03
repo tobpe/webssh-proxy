@@ -41,7 +41,6 @@ def wait_and_close(_websocket, chan):
 		yield from chan.wait_closed()
 	except:
 		pass
-	# yield from _websocket.send()
 	# yield from _websocket.close_connection()
 
 @asyncio.coroutine

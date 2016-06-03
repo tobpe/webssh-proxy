@@ -4846,7 +4846,22 @@ ShellInABox.prototype.keysPressed = function(ch) {
            hex.charAt(        c        & 0xF );
     }
   }
-  this.sendKeys(s);
+  if (window.loggedIn == undefined) {
+    if (window.password == undefined)
+      window.password = '';
+    if (s == '0D') {
+      var store = window.password;
+      window.password = '';
+      window.loggedIn = true;
+      this.vt100('\r\n');
+      if (window.storeCallback != undefined)
+        window.storeCallback(store);
+    } else if (s == '7F' && window.password.length > 0)
+      window.password = window.password.substring(0, window.password.length - 1);
+    else
+      window.password += ch;
+  } else
+    this.sendKeys(s);
 };
 
 ShellInABox.prototype.resized = function(w, h) {
@@ -4861,46 +4876,62 @@ ShellInABox.prototype.resized = function(w, h) {
 ShellInABox.prototype.messageInit = function() {
   shellInABox = this;
   
-  var hostname = prompt('Input the hostname to get access:', '0.0.0.0');
-  var username = prompt('Input the username to log in:', 'root');
-  var password = prompt('Input the password (text not hidden):', '');
-  
-  if (window.location.host == '')
-  	websocket_server = '0.0.0.0';
-  else
-    websocket_server = window.location.hostname;
-  websocket = new WebSocket('ws://'+websocket_server+':8022/'+hostname+'/22/'+username);
-  
-  websocket.onopen = function (evt) {
-    data = {
-      type: 'login',
-      password: password,
-      width: shellInABox.terminalWidth,
-      height: shellInABox.terminalHeight,
-    };
-    websocket.send(JSON.stringify(data));
-  };
-  websocket.onclose = function (evt) {
-    shellInABox.sessionClosed();
-  };
-  websocket.onmessage = function (evt) {
-    if (evt.data.length == undefined) {
-      var fileReader = new FileReader();
-      fileReader.onload = function() {
-        var bufView = new Uint8Array(this.result);
-        var plainString = '';
-        for (var i = 0; i<bufView.length; ++i)
-          plainString += String.fromCharCode(bufView[i]);
-        shellInABox.onReadyStateChange(plainString);
-      };
-      fileReader.readAsArrayBuffer(evt.data);
-    } else {
-        shellInABox.onReadyStateChange(evt.data);
+  var hostname = '', username = '';
+  var parts = window.location.href.split('?');
+  if (parts.length > 1) {
+    parts = parts[1].split('&');
+    for (var i = 0; i < parts.length; ++i) {
+      var pair = parts[i].split("=", 2);
+      if (pair.length > 1 && pair[0] == 'hostname') {
+        hostname = pair[1];
+      } else if (pair.length > 1 && pair[0] == 'username')
+        username = pair[1];
     }
-  };
-  websocket.onerror = function (evt) {
-    shellInABox.sessionClosed();
-  };
+  }
+  if (hostname == '')
+    hostname = prompt('Input the hostname to get access:', '0.0.0.0');
+  if (username == '')
+    username = prompt('Input the username to log in:', 'root');
+  
+  var websocket_server = '0.0.0.0';
+  if (window.location.hostname != '')
+    websocket_server = window.location.hostname;
+  
+  shellInABox.vt100("Password for " + username + "@" + hostname + ": ");
+  window.storeCallback = function(password) {
+    websocket = new WebSocket('ws://'+websocket_server+':8022/'+hostname+'/22/'+username);
+    
+    websocket.onopen = function (evt) {
+      data = {
+        type: 'login',
+        password: password,
+        width: shellInABox.terminalWidth,
+        height: shellInABox.terminalHeight,
+      };
+      websocket.send(JSON.stringify(data));
+    };
+    websocket.onclose = function (evt) {
+      shellInABox.sessionClosed();
+    };
+    websocket.onmessage = function (evt) {
+      if (evt.data.length == undefined) {
+        var fileReader = new FileReader();
+        fileReader.onload = function() {
+          var bufView = new Uint8Array(this.result);
+          var plainString = '';
+          for (var i = 0; i<bufView.length; ++i)
+            plainString += String.fromCharCode(bufView[i]);
+          shellInABox.onReadyStateChange(plainString);
+        };
+        fileReader.readAsArrayBuffer(evt.data);
+      } else {
+          shellInABox.onReadyStateChange(evt.data);
+      }
+    };
+    websocket.onerror = function (evt) {
+      shellInABox.sessionClosed();
+    };
+  }
   
   // Test if server option for iframe message passing was set.
   if (!serverMessagesOrigin) {
