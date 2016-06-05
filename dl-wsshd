@@ -87,6 +87,8 @@ def websocket_ssh_handler(_websocket, path):
 		yield from websocket_to_channel(_websocket, conn, data['width'], data['height'])
 	except asyncssh.misc.DisconnectError as e:
 		yield from _websocket.send(e.reason)
+	except ConnectionRefusedError as e:
+		yield from _websocket.send('Error: Cannot connect to SSH server %s' % hostname)
 	except:
 		import traceback
 		traceback.print_exc()
