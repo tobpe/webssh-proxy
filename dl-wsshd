@@ -3,6 +3,9 @@
 from socketserver import ThreadingMixIn
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from threading import Thread
+from os import chdir
+
+chdir('html')
 
 class ThreadingServer(ThreadingMixIn, HTTPServer):
     pass
