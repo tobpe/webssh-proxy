@@ -1,5 +1,5 @@
 FROM ubuntu:xenial
-ADD html /srv
+ADD html /srv/html
 ADD dl-wsshd /srv
 WORKDIR /srv
 RUN apt-get update && apt-get install -y --no-install-recommends python3-asyncssh python3-websockets openssl
