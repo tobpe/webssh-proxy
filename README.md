@@ -58,10 +58,5 @@ firefox "https://0.0.0.0:8022/?hostname=172.17.0.1"
 
 --------------------------------------------------------
 
-docker build -t ssh-tunnel .
-### Future work
-
-- extend approach for login using RSAPubKey
-
 Any issues are welcomed to provide.
 
