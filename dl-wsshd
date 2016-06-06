@@ -24,7 +24,33 @@ class TunnelSSHClientSession(asyncssh.SSHClientSession):
 
 class HTTPWebSocketServerProtocol(websockets.WebSocketServerProtocol):
 	
-	def hook_for_http_response(self, path, headers):
+	@asyncio.coroutine
+	def handler(self):
+		try:
+			method, path, version = (yield from self.reader.readline())[:-2].decode().split()
+			if method != 'GET' or not path.startswith('/') or version != 'HTTP/1.1':
+				raise
+			headers = {}
+			while True:
+				line = (yield from self.reader.readline())[:-2]
+				if line == b'':
+					break
+				key, content = line.decode('utf-8').split(': ', 1)
+				headers[key] = content
+			if 'Sec-WebSocket-Key' not in headers:
+				self.do_http_response(path, headers)
+				return
+			feed_buffer = ('%s %s %s\r\n' % (method, path, version)).encode()
+			for key in headers:
+				feed_buffer += ('%s: %s\r\n' % (key, headers[key])).encode()
+			self.reader._buffer = bytearray(feed_buffer + b'\r\n') + self.reader._buffer
+			yield from super().handler()
+		finally:
+			self.writer.close()
+			self.ws_server.unregister(self)
+			
+	
+	def do_http_response(self, path, headers):
 		path = '/index.html' if path == '/' else path
 		real_path = '.' + path.replace('..', '')
 		if not os.path.isfile(real_path):

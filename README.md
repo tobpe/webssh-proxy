@@ -42,6 +42,23 @@ firefox "https://0.0.0.0:8022/?username=user1&hostname=localhost"
 
 --------------------------------------------------------
 
+### Deploy Service in Docker
+
+```sh
+cd websocket-myssh-tunnel
+docker build -t myssh-tunnel .
+
+openssl req -x509 -nodes -days 3650 -subj "/CN=myssh/" -newkey rsa:2048 -keyout cert.pem -out cert.pem
+docker run --rm -v `pwd`/cert.pem:/srv/cert.pem -p 8022:8022 myssh-tunnel
+
+[then]
+
+firefox "https://0.0.0.0:8022/?hostname=172.17.0.1"
+```
+
+--------------------------------------------------------
+
+docker build -t ssh-tunnel .
 ### Future work
 
 - extend approach for login using RSAPubKey
