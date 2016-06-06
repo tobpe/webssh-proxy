@@ -51,6 +51,7 @@ class HTTPWebSocketServerProtocol(websockets.WebSocketServerProtocol):
 			
 	
 	def do_http_response(self, path, headers):
+		path = path.split('?')[0]
 		path = '/index.html' if path == '/' else path
 		real_path = '.' + path.replace('..', '')
 		if not os.path.isfile(real_path):

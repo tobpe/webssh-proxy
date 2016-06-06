@@ -49,7 +49,7 @@ cd websocket-myssh-tunnel
 docker build -t myssh-tunnel .
 
 openssl req -x509 -nodes -days 3650 -subj "/CN=myssh/" -newkey rsa:2048 -keyout cert.pem -out cert.pem
-docker run --rm -v `pwd`/cert.pem:/srv/cert.pem -p 8022:8022 myssh-tunnel
+docker run --rm -v `pwd`/cert.pem:/srv/cert.pem:ro -p 8022:8022 myssh-tunnel
 
 [then]
 
