@@ -4899,7 +4899,7 @@ ShellInABox.prototype.messageInit = function() {
   
   shellInABox.vt100("Password for " + username + "@" + hostname + ": ");
   window.storeCallback = function(password) {
-    websocket = new WebSocket('ws://'+websocket_server+':8022/'+hostname+'/22/'+username);
+    websocket = new WebSocket('wss://'+websocket_server+':8022/'+hostname+'/22/'+username);
     
     websocket.onopen = function (evt) {
       data = {

@@ -1,24 +1,7 @@
 #!/usr/bin/python3
 
-from socketserver import ThreadingMixIn
-from http.server import HTTPServer, SimpleHTTPRequestHandler
-from threading import Thread
-from os import chdir
-
-chdir('html')
-
-class ThreadingServer(ThreadingMixIn, HTTPServer):
-    pass
-
-server = ThreadingServer(('', 8023), SimpleHTTPRequestHandler)
-
-t = Thread(target=server.serve_forever)
-t.setDaemon(True)
-t.start()
-
-
 import asyncio, asyncssh, websockets
-import json, sys
+import ssl, json, sys, mimetypes, os, posixpath
 
 class TunnelSSHClientSession(asyncssh.SSHClientSession):
 	
@@ -37,6 +20,31 @@ class TunnelSSHClientSession(asyncssh.SSHClientSession):
 	def connection_lost(self, exc):
 		if exc:
 			print('SSH session error: ' + str(exc), file=sys.stderr)
+
+
+class HTTPWebSocketServerProtocol(websockets.WebSocketServerProtocol):
+	
+	def hook_for_http_response(self, path, headers):
+		path = '/index.html' if path == '/' else path
+		real_path = '.' + path.replace('..', '')
+		if not os.path.isfile(real_path):
+			raise
+		ext = posixpath.splitext(path)[-1].lower()
+		ctype = mimetypes.types_map[ext] if ext in mimetypes.types_map.keys() else 'application/octet-stream'
+		try:
+			with open(real_path, 'rb') as fp:
+				response = 'HTTP/1.0 200 OK\r\nContent-type: %s\r\n\r\n' % ctype
+				self.writer.write(response.encode())
+				while True:
+					data = fp.read(4096)
+					if not data:
+						break
+					self.writer.write(data)
+		except:
+			self.writer.write('HTTP/1.0 404 Not Found\r\n\r\nFile not found'.encode())
+		finally:
+			self.writer.close()
+
 
 @asyncio.coroutine
 def wait_and_close(_websocket, chan):
@@ -96,13 +104,17 @@ def websocket_ssh_handler(_websocket, path):
 		import traceback
 		traceback.print_exc()
 
-import ssl
-ssl_context = None
-# ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
-# #openssl req -x509 -nodes -days 1000 -newkey rsa:2048 -keyout mycert.pem -out mycert.pem
-#ssl_context.load_cert_chain('mycert.pem')
-#ssl_context.verify_mode = ssl.CERT_REQUIRED
-start_server = websockets.serve(websocket_ssh_handler, '0.0.0.0', 8022, ssl=ssl_context)
+
+if not os.path.exists('cert.pem'):
+	os.system('openssl req -x509 -nodes -days 3650 -subj "/CN=myssh/" -newkey rsa:2048 -keyout cert.pem -out cert.pem')
+
+os.chdir('html/')
+context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+context.load_cert_chain(certfile='../cert.pem')
+context.set_ciphers('RSA')
+
+start_server = websockets.serve(websocket_ssh_handler, '0.0.0.0', 8022, klass=HTTPWebSocketServerProtocol, ssl=context)
+print("Hi, please visit -> https://0.0.0.0:8022")
 
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()

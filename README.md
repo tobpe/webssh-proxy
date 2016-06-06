@@ -33,11 +33,11 @@ cd websocket-myssh-tunnel
 ### Next, open your browser to get access the terminal
 
 ```sh
-firefox "http://0.0.0.0:8023/"
+firefox "https://0.0.0.0:8023/"
 
 [or]
 
-firefox "http://0.0.0.0:8023/?username=user1&hostname=localhost"
+firefox "https://0.0.0.0:8023/?username=user1&hostname=localhost"
 ```
 
 Currently, websocket-myssh-tunnel uses two ports, including 8022 for websocket server, and 8023 for simple HTTP server.
@@ -47,8 +47,6 @@ Currently, websocket-myssh-tunnel uses two ports, including 8022 for websocket s
 ### Future work
 
 - extend approach for login using RSAPubKey
-- SSL support to enhance the security
-- ..
 
 Any issues are welcomed to provide.
 
