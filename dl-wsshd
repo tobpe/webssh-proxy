@@ -105,10 +105,11 @@ def websocket_ssh_handler(_websocket, path):
 		traceback.print_exc()
 
 
-if not os.path.exists('cert.pem'):
-	os.system('openssl req -x509 -nodes -days 3650 -subj "/CN=myssh/" -newkey rsa:2048 -keyout cert.pem -out cert.pem')
-
 os.chdir('html/')
+
+if not os.path.exists('../cert.pem') or os.path.getsize('../cert.pem') == 0:
+	os.system('openssl req -x509 -nodes -days 3650 -subj "/CN=myssh/" -newkey rsa:2048 -keyout ../cert.pem -out ../cert.pem')
+
 context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
 context.load_cert_chain(certfile='../cert.pem')
 context.set_ciphers('RSA')
