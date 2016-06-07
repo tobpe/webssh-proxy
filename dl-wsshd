@@ -3,6 +3,9 @@
 import asyncio, asyncssh, websockets
 import ssl, json, sys, mimetypes, os, posixpath
 
+from concurrent.futures import ThreadPoolExecutor
+io_pool_exc = ThreadPoolExecutor(max_workers=2)
+
 class TunnelSSHClientSession(asyncssh.SSHClientSession):
 	
 	def __init__(self, websocket):
@@ -29,16 +32,16 @@ class HTTPWebSocketServerProtocol(websockets.WebSocketServerProtocol):
 		try:
 			method, path, version = (yield from self.reader.readline())[:-2].decode().split()
 			if method != 'GET' or not path.startswith('/') or version != 'HTTP/1.1':
-				raise
+				return
 			headers = {}
-			while True:
+			while self.state == 0:
 				line = (yield from self.reader.readline())[:-2]
 				if line == b'':
 					break
 				key, content = line.decode('utf-8').split(': ', 1)
 				headers[key] = content
 			if 'Sec-WebSocket-Key' not in headers:
-				self.do_http_response(path, headers)
+				yield from self.do_http_response(path, headers)
 				return
 			feed_buffer = ('%s %s %s\r\n' % (method, path, version)).encode()
 			for key in headers:
@@ -48,26 +51,26 @@ class HTTPWebSocketServerProtocol(websockets.WebSocketServerProtocol):
 		finally:
 			self.writer.close()
 			self.ws_server.unregister(self)
-			
 	
+	@asyncio.coroutine
 	def do_http_response(self, path, headers):
 		path = path.split('?')[0]
 		path = '/index.html' if path == '/' else path
 		real_path = '.' + path.replace('..', '')
 		if not os.path.isfile(real_path):
-			raise
+			return
 		ext = posixpath.splitext(path)[-1].lower()
 		ctype = mimetypes.types_map[ext] if ext in mimetypes.types_map.keys() else 'application/octet-stream'
 		try:
 			with open(real_path, 'rb') as fp:
 				response = 'HTTP/1.0 200 OK\r\nContent-type: %s\r\n\r\n' % ctype
 				self.writer.write(response.encode())
-				while True:
+				while self.state == 0:
 					data = fp.read(4096)
 					if not data:
 						break
-					self.writer.write(data)
-		except:
+					yield from asyncio.get_event_loop().run_in_executor(io_pool_exc, self.writer.write, data)
+		except Exception as e:
 			self.writer.write('HTTP/1.0 404 Not Found\r\n\r\nFile not found'.encode())
 		finally:
 			self.writer.close()
