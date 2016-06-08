@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import asyncio, asyncssh, websockets
-import ssl, json, sys, mimetypes, os, posixpath
+import ssl, json, sys, mimetypes, os, posixpath, base64
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -94,6 +94,8 @@ class HTTPWebSocketServerProtocol(websockets.WebSocketServerProtocol):
 				feed_buffer += ('%s: %s\r\n' % (key, headers[key])).encode()
 			self.reader._buffer = bytearray(feed_buffer + b'\r\n') + self.reader._buffer
 			yield from super().handler()
+		except:
+			pass
 		finally:
 			self.writer.close()
 			try:
@@ -108,8 +110,10 @@ class HTTPWebSocketServerProtocol(websockets.WebSocketServerProtocol):
 			try:
 				[hostname, port, username] = path[10:].split('/')
 				for item in headers['Cookie'].split('; '):
-					if item.startswith('path='):
-						[path, passwd] = item[5:].split('&pass=')
+					if item.startswith('token='):
+						real_item = item[6:].replace('.', '=').replace('-', '+').replace('|', '/')
+						de = base64.b64decode(real_item).decode('utf-8')
+						[path, passwd] = de[5:].split('&pass=')
 						with (yield from asyncssh.connect(hostname, username=username, password=passwd, known_hosts=None)) as conn:
 							with (yield from conn.start_sftp_client()) as sftp:
 								if not (yield from sftp.exists(path)) or (yield from sftp.isdir(path)):

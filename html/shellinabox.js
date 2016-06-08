@@ -921,9 +921,61 @@ VT100.prototype.initializeElements = function(container) {
       if (fpath == null)
         return;
       
+	var base64EncodeChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-|"; // (- for +) (| for /) (. for =)
+	function base64encode(input) {
+		var out, i, len, c, str = input;
+
+		out = "";
+		len = str.length;
+		for(i = 0; i < len; i++) {
+			c = str.charCodeAt(i);
+			if ((c >= 0x0001) && (c <= 0x007F)) {
+				out += str.charAt(i);
+			} else if (c > 0x07FF) {
+				out += String.fromCharCode(0xE0 | ((c >> 12) & 0x0F));
+				out += String.fromCharCode(0x80 | ((c >> 6) & 0x3F));
+				out += String.fromCharCode(0x80 | ((c >> 0) & 0x3F));
+			} else {
+				out += String.fromCharCode(0xC0 | ((c >> 6) & 0x1F));
+				out += String.fromCharCode(0x80 | ((c >> 0) & 0x3F));
+			}
+		}
+	
+		str = out;
+		var c1, c2, c3;
+		len = str.length;
+		i = 0;
+		out = "";
+		while(i < len) {
+			c1 = str.charCodeAt(i++) & 0xff;
+			if(i == len) {
+				out += base64EncodeChars.charAt(c1 >> 2);
+				out += base64EncodeChars.charAt((c1 & 0x3) << 4);
+				out += "..";
+				break;
+			}
+			c2 = str.charCodeAt(i++);
+			if(i == len) {
+				out += base64EncodeChars.charAt(c1 >> 2);
+				out += base64EncodeChars.charAt(((c1 & 0x3)<< 4) | ((c2 & 0xF0) >> 4));
+				out += base64EncodeChars.charAt((c2 & 0xF) << 2);
+				out += ".";
+				break;
+			}
+			c3 = str.charCodeAt(i++);
+			out += base64EncodeChars.charAt(c1 >> 2);
+			out += base64EncodeChars.charAt(((c1 & 0x3)<< 4) | ((c2 & 0xF0) >> 4));
+			out += base64EncodeChars.charAt(((c2 & 0xF) << 2) | ((c3 & 0xC0) >>6));
+			out += base64EncodeChars.charAt(c3 & 0x3F);
+		}
+		return out;
+	}
+	
+      var token = base64encode('path=' + fpath + '&pass=' + window.session_data.password);
+
       var d = new Date();
       d.setDate(d.getDate() + 1);
-      document.cookie = 'path=' + fpath + '&pass=' + window.session_data.password + ';expires=' + d.toGMTString();
+      document.cookie = 'token=' + token + ';expires=' + d.toGMTString();
       window.open('/sftp-get/'+window.session_data.hostname+'/'+window.session_data.port+'/'+window.session_data.username);
     };
     
