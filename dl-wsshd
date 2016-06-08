@@ -4,9 +4,53 @@ import asyncio, asyncssh, websockets
 import ssl, json, sys, mimetypes, os, posixpath
 
 from concurrent.futures import ThreadPoolExecutor
-io_pool_exc = ThreadPoolExecutor(max_workers=2)
 
 security_rules = []
+
+def check_rules(hostname, s_port):
+	allowed = False
+	for rule in security_rules:
+		typ, addr, port = rule
+		if typ == 'allow' and (addr == '*' or addr == hostname) and (addr == '*' or port == s_port):
+			allowed = True
+			break
+		if typ == 'deny' and (addr == '*' or addr == hostname) and (addr == '*' or port == s_port):
+			return
+	return allowed
+
+@asyncio.coroutine
+def blacklist_reload():
+	mtime = None
+	while True:
+		ctime = os.path.getmtime('../security.lst')
+		if ctime != mtime:
+			mtime = ctime
+			security_rules.clear()
+			with open('../security.lst', 'r') as fp:
+				while True:
+					line = fp.readline()
+					if not line:
+						break
+					line = line.strip()
+					if len(line) == 0:
+						continue
+					parts = line.split()
+					try:
+						assert (len(parts) == 3)
+						assert (parts[0] == 'allow' or parts[0] == 'deny')
+						if parts[2] != '*':
+							port = int(parts[2])
+							assert(port > 0 and port < 65536)
+						security_rules.append((parts[0], parts[1], parts[2]))
+					except:
+						print("[warning]", "skip parsing line: '%s'" % line)
+				
+			print("Sec-Table:", security_rules)
+		yield from asyncio.sleep(5)
+
+
+io_pool_exc = ThreadPoolExecutor(max_workers=1)
+
 
 class TunnelSSHClientSession(asyncssh.SSHClientSession):
 	
@@ -52,11 +96,40 @@ class HTTPWebSocketServerProtocol(websockets.WebSocketServerProtocol):
 			yield from super().handler()
 		finally:
 			self.writer.close()
-			self.ws_server.unregister(self)
+			try:
+				self.ws_server.unregister(self)
+			except:
+				pass
 	
 	@asyncio.coroutine
 	def do_http_response(self, path, headers):
 		path = path.split('?')[0]
+		if path.startswith('/sftp-get/'):
+			try:
+				[hostname, port, username] = path[10:].split('/')
+				for item in headers['Cookie'].split('; '):
+					if item.startswith('path='):
+						[path, passwd] = item[5:].split('&pass=')
+						with (yield from asyncssh.connect(hostname, username=username, password=passwd, known_hosts=None)) as conn:
+							with (yield from conn.start_sftp_client()) as sftp:
+								if not (yield from sftp.exists(path)) or (yield from sftp.isdir(path)):
+									response = 'HTTP/1.0 404 Not Found\r\n\r\nCannot get access to file %s@%s:%s!' % (username, hostname, path)
+									self.writer.write(response.encode())
+								else:
+									response = 'HTTP/1.0 200 OK\r\nContent-type: application/octet-stream\r\nContent-Disposition: attachment; filename=%s\r\n\r\n' % path.split('/')[-1]
+									self.writer.write(response.encode())
+									with (yield from sftp.open(path, 'rb')) as fp:
+										while self.state == 0:
+											data = yield from fp.read(40960)
+											if not data:
+												break
+											self.writer.write(data)
+						break
+			except Exception as exc:
+				self.writer.write(("error: " + str(exc)).encode())
+			finally:
+				self.writer.close()
+			return
 		path = '/index.html' if path == '/' else path
 		real_path = '.' + path.replace('..', '')
 		if not os.path.isfile(real_path):
@@ -78,20 +151,20 @@ class HTTPWebSocketServerProtocol(websockets.WebSocketServerProtocol):
 			self.writer.close()
 
 
-@asyncio.coroutine
-def wait_and_close(_websocket, chan):
-	try:
-		yield from chan.wait_closed()
-	except:
-		pass
-	# yield from _websocket.close_connection()
 
 @asyncio.coroutine
 def websocket_to_channel(_websocket, conn, init_width, init_height):
 	try:
 		def ssh_session_factory():
 			return TunnelSSHClientSession(_websocket)
-		
+
+		@asyncio.coroutine
+		def wait_and_close(_websocket, chan):
+			try:
+				yield from chan.wait_closed()
+			except:
+				pass
+
 		chan, session = yield from conn.create_session(ssh_session_factory, 'bash', term_type='xterm', term_size=(init_width, init_height), encoding=None)
 		asyncio.async(wait_and_close(_websocket, chan), loop=asyncio.get_event_loop())
 		while True:
@@ -117,26 +190,36 @@ def websocket_to_channel(_websocket, conn, init_width, init_height):
 		except:
 			pass
 
+
 @asyncio.coroutine
 def websocket_ssh_handler(_websocket, path):
 	try:
-		[null, hostname, s_port, username] = path.split('/')
-		allowed = False
-		for rule in security_rules:
-			typ, addr, port = rule
-			if typ == 'allow' and (addr == '*' or addr == hostname) and (addr == '*' or port == s_port):
-				allowed = True
-				break
-			if typ == 'deny' and (addr == '*' or addr == hostname) and (addr == '*' or port == s_port):
-				return
-		print(allowed)
-		if not allowed:
+		[null, protocol, hostname, s_port, username] = path.split('/')
+		if not check_rules(hostname, s_port):
 			return
+		
 		data = yield from _websocket.recv()
 		data = json.loads(data)
 		assert(data['type'] == 'login')
 		password = data['password']
+		if protocol == 'sftp-put':
+			fname = data['fname']
+			slices = data['slices']
+			with (yield from asyncssh.connect(hostname, username=username, password=password, known_hosts=None)) as conn:
+				with (yield from conn.start_sftp_client()) as sftp:
+					if (yield from sftp.exists(fname)):
+						yield from _websocket.send('Original file "%s/%s" already exists at Remote Server.' % ((yield from sftp.getcwd()), fname))
+					else:
+						with (yield from sftp.open(fname, 'wb')) as fp:
+							for i in range(slices):
+								yield from _websocket.send('Ack')
+								data = yield from _websocket.recv()
+								assert(isinstance(data, bytes))
+								yield from fp.write(data)
+						yield from _websocket.send('Done')
+			return
 		
+		assert(protocol == 'ssh')
 		conn, client = yield from asyncssh.create_connection(asyncssh.SSHClient, hostname, username=username, port=int(s_port), password=password, known_hosts=None)
 		yield from websocket_to_channel(_websocket, conn, data['width'], data['height'])
 	except asyncssh.misc.DisconnectError as e:
@@ -146,6 +229,11 @@ def websocket_ssh_handler(_websocket, path):
 	except:
 		import traceback
 		traceback.print_exc()
+	finally:
+		try:
+			conn.close()
+		except:
+			pass
 
 
 os.chdir('html/')
@@ -159,42 +247,6 @@ context.set_ciphers('RSA')
 
 start_server = websockets.serve(websocket_ssh_handler, '0.0.0.0', 8022, klass=HTTPWebSocketServerProtocol, ssl=context)
 print("Hi, please visit -> https://0.0.0.0:8022")
-
-@asyncio.coroutine
-def blacklist_reload():
-	mtime = None
-	while True:
-		ctime = os.path.getmtime('../security.lst')
-		if ctime != mtime:
-			mtime = ctime
-			security_rules.clear()
-			with open('../security.lst', 'r') as fp:
-				while True:
-					line = fp.readline()
-					if not line:
-						break
-					line = line.strip()
-					if len(line) == 0:
-						continue
-					parts = line.split()
-					try:
-						assert (len(parts) == 3)
-						assert (parts[0] == 'allow' or parts[0] == 'deny')
-						if parts[1] != '*':
-							ipfield = parts[1].split('.')
-							assert(len(ipfield) == 4)
-							for i in range(4):
-								ipfield[i] = int(ipfield[i])
-								assert(ipfield[i] >=0 and ipfield[i] < 256)
-						if parts[2] != '*':
-							port = int(parts[2])
-							assert(port > 0 and port < 65536)
-						security_rules.append((parts[0], parts[1], parts[2]))
-					except:
-						print("[warning]", "skip parsing line: '%s'" % line)
-				
-			print("Security list get updated.")
-		yield from asyncio.sleep(5)
 
 asyncio.async(blacklist_reload(), loop=asyncio.get_event_loop())
 asyncio.get_event_loop().run_until_complete(start_server)

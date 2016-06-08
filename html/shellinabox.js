@@ -5,6 +5,10 @@ linkifyURLs       = 1;
 userCSSList       = [[ 'White On Black', true, true ], [ 'Color Terminal', true, true ]];
 serverMessagesOrigin = false;
 
+websocket_server = '0.0.0.0:8022';
+if (window.location.host != '')
+  websocket_server = window.location.host;
+
 // VT100.js -- JavaScript based terminal emulator
 // Copyright (C) 2008-2010 Markus Gutschke <markus@shellinabox.com>
 //
@@ -330,6 +334,8 @@ VT100.prototype.getUserSettings = function() {
   }
 
   var key                   = 'shellInABox=' + this.signature + ':';
+  this.utfEnabled           = this.utfPreferred;
+  return;
   var settings              = document.cookie.indexOf(key);
   if (settings >= 0) {
     settings                = document.cookie.substr(settings + key.length).
@@ -349,7 +355,6 @@ VT100.prototype.getUserSettings = function() {
       }
     }
   }
-  this.utfEnabled           = this.utfPreferred;
 };
 
 VT100.prototype.storeUserSettings = function() {
@@ -365,6 +370,7 @@ VT100.prototype.storeUserSettings = function() {
       settings += userCSSList[i][2] ? '1' : '0';
     }
   }
+  return;
   var d         = new Date();
   d.setDate(d.getDate() + 3653);
   document.cookie = settings + ';expires=' + d.toGMTString();
@@ -885,7 +891,7 @@ VT100.prototype.initializeElements = function(container) {
                        '<div id="scrollable">' +
                          '<table id="kbd_button">' +
                            '<tr><td width="100%">&nbsp;</td>' +
-                           '<td><input type="submit" id="kbd_img" value="keyboard" /></td>' +
+                           '<td><input type="submit" style="visibility:visible;background-color: Transparent;" id="sftp_get" value="sftp-get" /><input type="submit" style="visibility:visible;background-color: Transparent;" id="sftp_put" value="sftp-put" /><input type="submit" id="kbd_img" style="background-color: Transparent;" value="keyboard"/></td>' +
                            '<td>&nbsp;&nbsp;&nbsp;&nbsp;</td></tr>' +
                          '</table>' +
                          '<pre id="lineheight">&nbsp;</pre>' +
@@ -904,6 +910,75 @@ VT100.prototype.initializeElements = function(container) {
                          '<input type="text" id="cliphelper" />' +
                          '<iframe id="layout" src="keyboard.html" />' +
                         '</div>';
+    
+    this.getChildById(this.container,'sftp_get').onclick = function() {
+      if (window.session_data.username == 'root')
+        fpath = '/root';
+      else
+        fpath = '/home/' + window.session_data.username;
+      fpath += '/remote.txt'
+      var fpath = prompt('Input the remote absolute path of file you want to get:', fpath);
+      if (fpath == null)
+        return;
+      
+      var d = new Date();
+      d.setDate(d.getDate() + 1);
+      document.cookie = 'path=' + fpath + '&pass=' + window.session_data.password + ';expires=' + d.toGMTString();
+      window.open('/sftp-get/'+window.session_data.hostname+'/'+window.session_data.port+'/'+window.session_data.username);
+    };
+    
+    this.getChildById(this.container,'sftp_put').onclick = function() {
+      if (window.loggedIn != true)
+      	return alert('You have not logged into SSH session.');
+      
+      function FileSlicer(file) {
+        this.sliceSize = 102400;
+        this.slices = Math.ceil(file.size / this.sliceSize);
+        this.currentSlice = 0;
+        this.getNextSlice = function() {
+          var start = this.currentSlice * this.sliceSize;
+          var end = Math.min((this.currentSlice+1) * this.sliceSize, file.size);
+          ++this.currentSlice;
+          return file.slice(start, end);
+        };
+      };
+      
+      var uploader = document.getElementById('sftp_uploader');
+      
+      uploader.onchange = function() {
+        var file = uploader.files[0];
+        var fs = new FileSlicer(file);
+        var ws_sftp = new WebSocket('wss://'+websocket_server+'/sftp-put/'+window.session_data.hostname+'/'+window.session_data.port+'/'+window.session_data.username);
+        document.getElementById('sftp_put').disabled = true;
+        
+        ws_sftp.onopen = function (evt) {
+          data = {
+            type: 'login',
+            password: window.session_data.password,
+            fname: file.name,
+            slices: fs.slices
+          };
+          ws_sftp.send(JSON.stringify(data));
+        };
+        ws_sftp.onclose = function (evt) {
+          console.log('SFTP-PUT procedure finished.');
+          document.getElementById('sftp_put').disabled = false;
+          document.getElementById('sftp_put').value = 'sftp-put';
+        };
+        ws_sftp.onmessage = function (evt) {
+          if (evt.data == 'Ack') {
+            var progress = Math.ceil(fs.currentSlice * 100 / fs.slices);
+            document.getElementById('sftp_put').value = progress + ' %';
+            ws_sftp.send(fs.getNextSlice());
+          } else if (evt.data == 'Done') {
+            alert('Successfully uploading file to remote: "~/' + file.name + '"');
+          } else
+            alert('Uploading failed, Reason:\n' + evt.data);
+        };
+      };
+      
+      uploader.click();
+    };
   }
 
   // Find the object used for playing the "beep" sound, if any.
@@ -4652,6 +4727,7 @@ extend(ShellInABox, VT100);
 
 ShellInABox.prototype.sessionClosed = function() {
   try {
+    window.loggedIn = undefined;
     this.connected    = false;
     if (this.session) {
       this.session    = undefined;
@@ -4847,19 +4923,17 @@ ShellInABox.prototype.keysPressed = function(ch) {
     }
   }
   if (window.loggedIn == undefined) {
-    if (window.password == undefined)
-      window.password = '';
     if (s == '0D') {
-      var store = window.password;
-      window.password = '';
+      var store = window.session_data.password;
+      //window.session_data.password = '';
       window.loggedIn = true;
       this.vt100('\r\n');
       if (window.storeCallback != undefined)
         window.storeCallback(store);
-    } else if (s == '7F' && window.password.length > 0)
-      window.password = window.password.substring(0, window.password.length - 1);
+    } else if (s == '7F' && window.session_data.password.length > 0)
+      window.session_data.password = window.session_data.password.substring(0, window.session_data.password.length - 1);
     else
-      window.password += ch;
+      window.session_data.password += ch;
   } else
     this.sendKeys(s);
 };
@@ -4876,35 +4950,44 @@ ShellInABox.prototype.resized = function(w, h) {
 ShellInABox.prototype.messageInit = function() {
   shellInABox = this;
   
-  var hostname = '', username = '';
+  if (window.session_data == undefined) {
+    window.session_data = {
+      password: '',
+      hostname: '',
+      username: '',
+      port: '22'
+    };
+  }
   var parts = window.location.href.split('?');
   if (parts.length > 1) {
     parts = parts[1].split('&');
     for (var i = 0; i < parts.length; ++i) {
       var pair = parts[i].split("=", 2);
       if (pair.length > 1 && pair[0] == 'hostname') {
-        hostname = pair[1];
+        window.session_data.hostname = pair[1];
       } else if (pair.length > 1 && pair[0] == 'username')
-        username = pair[1];
+        window.session_data.username = pair[1];
     }
   }
-  if (hostname == '')
-    hostname = prompt('Input the hostname to get access:', '0.0.0.0');
-  if (username == '')
-    username = prompt('Input the username to log in:', 'root');
+  if (window.session_data.hostname == '') {
+    window.session_data.hostname = prompt('Input the hostname to get access:', '0.0.0.0');
+    if (window.session_data.hostname == null)
+      window.session_data.hostname = '0.0.0.0';
+  }
+  if (window.session_data.username == '') {
+    window.session_data.username = prompt('Input the username to log in:', 'root');
+    if (window.session_data.hostname == null)
+      window.session_data.hostname = 'root';
+  }
   
-  var websocket_server = '0.0.0.0:8022';
-  if (window.location.host != '')
-    websocket_server = window.location.host;
-  
-  shellInABox.vt100("Password for " + username + "@" + hostname + ": ");
+  shellInABox.vt100("Password for " + window.session_data.username + "@" + window.session_data.hostname + ": ");
   window.storeCallback = function(password) {
-    websocket = new WebSocket('wss://'+websocket_server+'/'+hostname+'/22/'+username);
+    websocket = new WebSocket('wss://'+websocket_server+'/ssh/'+window.session_data.hostname+'/22/'+window.session_data.username);
     
     websocket.onopen = function (evt) {
       data = {
         type: 'login',
-        password: password,
+        password: window.session_data.password,
         width: shellInABox.terminalWidth,
         height: shellInABox.terminalHeight,
       };
