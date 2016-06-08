@@ -912,13 +912,15 @@ VT100.prototype.initializeElements = function(container) {
                         '</div>';
     
     this.getChildById(this.container,'sftp_get').onclick = function() {
+      if (window.loggedIn != true)
+      	return alert('You have not logged into SSH session.');
       if (window.session_data.username == 'root')
         fpath = '/root';
       else
         fpath = '/home/' + window.session_data.username;
       fpath += '/remote.txt'
       var fpath = prompt('Input the remote absolute path of file you want to get:', fpath);
-      if (fpath == null)
+      if (fpath == null || fpath.length == 0)
         return;
       
 	var base64EncodeChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-|"; // (- for +) (| for /) (. for =)
@@ -995,20 +997,28 @@ VT100.prototype.initializeElements = function(container) {
         };
       };
       
+      document.getElementById('sftp_uploader_div').innerHTML = '<input type="file" id="sftp_uploader" />';
       var uploader = document.getElementById('sftp_uploader');
       
       uploader.onchange = function() {
         var file = uploader.files[0];
         var fs = new FileSlicer(file);
+        var fpath = prompt('Input the target directory you want to put the local file to:', '~/');
+        if (fpath == null || fpath.length == 0)
+          return;
+        
         var ws_sftp = new WebSocket('wss://'+websocket_server+'/sftp-put/'+window.session_data.hostname+'/'+window.session_data.port+'/'+window.session_data.username);
         document.getElementById('sftp_put').disabled = true;
+        
+        if (fpath[fpath.length-1] != '/')
+          fpath += '/';
         
         ws_sftp.onopen = function (evt) {
           data = {
             type: 'login',
             password: window.session_data.password,
-            fname: file.name,
-            slices: fs.slices
+            fname: fpath + file.name,
+            slices: fs.slices,
           };
           ws_sftp.send(JSON.stringify(data));
         };

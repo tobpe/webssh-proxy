@@ -209,18 +209,23 @@ def websocket_ssh_handler(_websocket, path):
 		if protocol == 'sftp-put':
 			fname = data['fname']
 			slices = data['slices']
-			with (yield from asyncssh.connect(hostname, username=username, password=password, known_hosts=None)) as conn:
-				with (yield from conn.start_sftp_client()) as sftp:
-					if (yield from sftp.exists(fname)):
-						yield from _websocket.send('Original file "%s/%s" already exists at Remote Server.' % ((yield from sftp.getcwd()), fname))
-					else:
-						with (yield from sftp.open(fname, 'wb')) as fp:
-							for i in range(slices):
-								yield from _websocket.send('Ack')
-								data = yield from _websocket.recv()
-								assert(isinstance(data, bytes))
-								yield from fp.write(data)
-						yield from _websocket.send('Done')
+			try:
+				with (yield from asyncssh.connect(hostname, username=username, password=password, known_hosts=None)) as conn:
+					with (yield from conn.start_sftp_client()) as sftp:
+						if fname.startswith('~/'):
+							fname = (yield from sftp.getcwd()) + '/' + fname[2:]
+						if (yield from sftp.exists(fname)):
+							yield from _websocket.send('File "%s" already exists at Remote Server.' % fname)
+						else:
+							with (yield from sftp.open(fname, 'wb')) as fp:
+								for i in range(slices):
+									yield from _websocket.send('Ack')
+									data = yield from _websocket.recv()
+									assert(isinstance(data, bytes))
+									yield from fp.write(data)
+							yield from _websocket.send('Done')
+			except Exception as exc:
+				yield from _websocket.send(str(exc))
 			return
 		
 		assert(protocol == 'ssh')
