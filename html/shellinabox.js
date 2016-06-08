@@ -4893,13 +4893,13 @@ ShellInABox.prototype.messageInit = function() {
   if (username == '')
     username = prompt('Input the username to log in:', 'root');
   
-  var websocket_server = '0.0.0.0';
-  if (window.location.hostname != '')
-    websocket_server = window.location.hostname;
+  var websocket_server = '0.0.0.0:8022';
+  if (window.location.host != '')
+    websocket_server = window.location.host;
   
   shellInABox.vt100("Password for " + username + "@" + hostname + ": ");
   window.storeCallback = function(password) {
-    websocket = new WebSocket('wss://'+websocket_server+':8022/'+hostname+'/22/'+username);
+    websocket = new WebSocket('wss://'+websocket_server+'/'+hostname+'/22/'+username);
     
     websocket.onopen = function (evt) {
       data = {
