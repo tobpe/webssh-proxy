@@ -1,14 +1,15 @@
 # websocket-myssh-tunnel (python3 based)
 
-Union of Shellinabox Frontend and Asyncssh Backend, using WebSocket to build SSH Tunnel, providing more features compared with original Shellinabox.
+Union of Shellinabox Frontend and Asyncssh Backend, using WebSocket to build SSH Tunnel, providing more features compared with original Shellinabox, such as Secure FTP.
 
 --------------------------------------------------------
 
 *Features of websocket-myssh-tunnel*:
 
 - Inherit from Shellinabox: UTF-8 Support, Color Terminal, Beep Sound, OnScreen Keyboard, ..
-- Tunnel Feature Support: Able to connect an another SSH server 
+- Tunnel Feature Support: Able to connect an another SSH server
 - Quick Cleaning: Able to detect the abnormally exited session and instantly close the corresponding session resources (Shellinabox will hang running processes for a while when users abnormally quit the session)
+- sFTP support: file transfer between local PC and remote SSH, including FTP get, FTP put. Huge-file transfer is supported.
 
 
 *Supported All mainstream browsers*:

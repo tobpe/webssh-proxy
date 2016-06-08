@@ -300,7 +300,7 @@ VT100.prototype.getUserSettings = function() {
   this.visualBell           = typeof suppressAllAudio != 'undefined' &&
                               suppressAllAudio;
   this.autoprint            = true;
-  this.softKeyboard         = false;
+  this.softKeyboard         = true;
   this.blinkingCursor       = true;
   this.disableAlt           = false;
 
@@ -891,7 +891,7 @@ VT100.prototype.initializeElements = function(container) {
                        '<div id="scrollable">' +
                          '<table id="kbd_button">' +
                            '<tr><td width="100%">&nbsp;</td>' +
-                           '<td><input type="submit" style="visibility:visible;background-color: Transparent;" id="sftp_get" value="sftp-get" /><input type="submit" style="visibility:visible;background-color: Transparent;" id="sftp_put" value="sftp-put" /><input type="submit" id="kbd_img" style="background-color: Transparent;" value="keyboard"/></td>' +
+                           '<td><input type="submit" style="visibility:visible;background-color: Transparent; color: white;" id="sftp_get" value="sftp-get" /><input type="submit" style="visibility:visible;background-color: Transparent; color: white;" id="sftp_put" value="sftp-put" /><input type="submit" id="kbd_img" style="background-color: Transparent; color: white;" value="keyboard"/></td>' +
                            '<td>&nbsp;&nbsp;&nbsp;&nbsp;</td></tr>' +
                          '</table>' +
                          '<pre id="lineheight">&nbsp;</pre>' +
@@ -991,6 +991,8 @@ VT100.prototype.initializeElements = function(container) {
   this.menu                    = this.getChildById(this.container, 'menu');
   this.keyboard                = this.getChildById(this.container, 'keyboard');
   this.keyboardImage           = this.getChildById(this.container, 'kbd_img');
+  this.ftpGET                  = this.getChildById(this.container, 'sftp_get');
+  this.ftpPUT                  = this.getChildById(this.container, 'sftp_put');
   this.layout                  = this.getChildById(this.container, 'layout');
   this.scrollable              = this.getChildById(this.container,
                                                                  'scrollable');
@@ -2465,6 +2467,8 @@ VT100.prototype.toggleBell = function() {
 VT100.prototype.toggleSoftKeyboard = function() {
   this.softKeyboard = !this.softKeyboard;
   this.keyboardImage.style.visibility = this.softKeyboard ? 'visible' : '';
+  this.ftpGET.style.visibility = this.softKeyboard ? 'visible' : '';
+  this.ftpPUT.style.visibility = this.softKeyboard ? 'visible' : '';
 };
 
 VT100.prototype.toggleDisableAlt = function() {
@@ -2568,7 +2572,7 @@ VT100.prototype.showContextMenu = function(x, y) {
              'Visual Bell</li>'+
           '<li>' +
              (this.softKeyboard ? '&#9679;' : '') +
-             'Onscreen Keyboard</li>' +
+             'Show SFTP/Keyboard</li>' +
           '<li>' +
              (this.disableAlt ? '&#9679;' : '') +
              'Disable Alt Key</li>' +
