@@ -6,6 +6,8 @@ import ssl, json, sys, mimetypes, os, posixpath
 from concurrent.futures import ThreadPoolExecutor
 io_pool_exc = ThreadPoolExecutor(max_workers=2)
 
+security_rules = []
+
 class TunnelSSHClientSession(asyncssh.SSHClientSession):
 	
 	def __init__(self, websocket):
@@ -119,6 +121,17 @@ def websocket_to_channel(_websocket, conn, init_width, init_height):
 def websocket_ssh_handler(_websocket, path):
 	try:
 		[null, hostname, s_port, username] = path.split('/')
+		allowed = False
+		for rule in security_rules:
+			typ, addr, port = rule
+			if typ == 'allow' and (addr == '*' or addr == hostname) and (addr == '*' or port == s_port):
+				allowed = True
+				break
+			if typ == 'deny' and (addr == '*' or addr == hostname) and (addr == '*' or port == s_port):
+				return
+		print(allowed)
+		if not allowed:
+			return
 		data = yield from _websocket.recv()
 		data = json.loads(data)
 		assert(data['type'] == 'login')
@@ -147,6 +160,43 @@ context.set_ciphers('RSA')
 start_server = websockets.serve(websocket_ssh_handler, '0.0.0.0', 8022, klass=HTTPWebSocketServerProtocol, ssl=context)
 print("Hi, please visit -> https://0.0.0.0:8022")
 
+@asyncio.coroutine
+def blacklist_reload():
+	mtime = None
+	while True:
+		ctime = os.path.getmtime('../security.lst')
+		if ctime != mtime:
+			mtime = ctime
+			security_rules.clear()
+			with open('../security.lst', 'r') as fp:
+				while True:
+					line = fp.readline()
+					if not line:
+						break
+					line = line.strip()
+					if len(line) == 0:
+						continue
+					parts = line.split()
+					try:
+						assert (len(parts) == 3)
+						assert (parts[0] == 'allow' or parts[0] == 'deny')
+						if parts[1] != '*':
+							ipfield = parts[1].split('.')
+							assert(len(ipfield) == 4)
+							for i in range(4):
+								ipfield[i] = int(ipfield[i])
+								assert(ipfield[i] >=0 and ipfield[i] < 256)
+						if parts[2] != '*':
+							port = int(parts[2])
+							assert(port > 0 and port < 65536)
+						security_rules.append((parts[0], parts[1], parts[2]))
+					except:
+						print("[warning]", "skip parsing line: '%s'" % line)
+				
+			print("Security list get updated.")
+		yield from asyncio.sleep(5)
+
+asyncio.async(blacklist_reload(), loop=asyncio.get_event_loop())
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()
 
