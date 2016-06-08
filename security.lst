@@ -1,3 +1,4 @@
-allow  0.0.0.0  22
-deny   *        *
+allow  0.0.0.0     22
+allow  172.17.0.1  22
+deny   *           *
 

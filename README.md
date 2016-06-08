@@ -37,7 +37,7 @@ firefox "https://0.0.0.0:8022/"
 
 [or]
 
-firefox "https://0.0.0.0:8022/?username=user1&hostname=localhost"
+firefox "https://0.0.0.0:8022/?username=user1&hostname=0.0.0.0"
 ```
 
 --------------------------------------------------------
