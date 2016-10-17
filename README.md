@@ -1,10 +1,10 @@
-# websocket-myssh-tunnel (python3 based)
+# webssh-proxy (python3 based)
 
 Union of Shellinabox Frontend and Asyncssh Backend, using WebSocket to build SSH Tunnel, providing more features compared with original Shellinabox, such as Secure FTP.
 
 --------------------------------------------------------
 
-*Features of websocket-myssh-tunnel*:
+*Features of webssh-proxy*:
 
 - Inherit from Shellinabox: UTF-8 Support, Color Terminal, Beep Sound, OnScreen Keyboard, ..
 - Tunnel Feature Support: Able to connect an another SSH server
@@ -24,14 +24,14 @@ Union of Shellinabox Frontend and Asyncssh Backend, using WebSocket to build SSH
 
 ```sh
 sudo apt-get install python3-websockets python3-asyncssh
-git clone https://github.com/ghostplant/websocket-myssh-tunnel
-cd websocket-myssh-tunnel
+git clone https://github.com/ghostplant/webssh-proxy
+cd webssh-proxy
 ./dl-wsshd
 ```
 
 --------------------------------------------------------
 
-### Next, open your browser to get access the terminal
+### Next, open your browser to get access to the terminal
 
 ```sh
 firefox "https://0.0.0.0:8022/"
@@ -46,7 +46,7 @@ firefox "https://0.0.0.0:8022/?username=user1&hostname=0.0.0.0"
 ### Deploy Service in Docker
 
 ```sh
-cd websocket-myssh-tunnel
+cd webssh-proxy
 docker build -t myssh-tunnel .
 
 openssl req -x509 -nodes -days 3650 -subj "/CN=myssh/" -newkey rsa:2048 -keyout cert.pem -out cert.pem

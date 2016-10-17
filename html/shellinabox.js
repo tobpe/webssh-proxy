@@ -1033,7 +1033,7 @@ VT100.prototype.initializeElements = function(container) {
             document.getElementById('sftp_put').value = progress + ' %';
             ws_sftp.send(fs.getNextSlice());
           } else if (evt.data == 'Done') {
-            alert('Successfully uploading file to remote: "~/' + file.name + '"');
+            alert('The file has been successfully uploaded to remote: "~/' + file.name + '"');
           } else
             alert('Uploading failed, Reason:\n' + evt.data);
         };
